@@ -1,0 +1,690 @@
+anaOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PharmaStore Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="PharmaStore">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, connectFirestoreEmulator, writeBatch, collection, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getStorage } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+        
+        // Firebase configuration (replace with your config)
+        const firebaseConfig = {
+            apiKey: "your-api-key",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "your-app-id"
+        };
+        
+        // Initialize Firebase
+        window.firebaseApp = initializeApp(firebaseConfig);
+        window.firestore = getFirestore(window.firebaseApp);
+        window.firebaseAuth = getAuth(window.firebaseApp);
+        window.firebaseStorage = getStorage(window.firebaseApp);
+        
+        // Make Firebase available globally with all needed functions
+        window.Firebase = {
+            app: window.firebaseApp,
+            firestore: window.firestore,
+            auth: window.firebaseAuth,
+            storage: window.firebaseStorage,
+            // Export Firebase functions
+            writeBatch: writeBatch,
+            collection: collection,
+            doc: doc,
+            setDoc: setDoc,
+            getDoc: getDoc,
+            onSnapshot: onSnapshot
+        };
+    </script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fas fa-pills"></i>
+                <h1>PharmaStore System</h1>
+                <p>Management System</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="userType">Login As</label>
+                    <select id="userType" required>
+                        <option value="">Select User Type</option>
+                        <option value="admin">Admin</option>
+                        <option value="user">User</option>
+                    </select>
+                </div>
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+            <div class="login-footer">
+                <p>Default Admin: admin/password123</p>
+                <p>Default User: user/user123</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="main-app" style="display: none;">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <i class="fas fa-pills"></i>
+                <h1>PharmaStore Management</h1>
+            </div>
+            <div class="header-right">
+                <div class="sync-status">
+                    <span id="syncStatus" class="status-indicator offline">
+                        <i class="fas fa-wifi"></i> <span>Offline</span>
+                    </span>
+                    <button id="syncBtn" class="sync-btn" onclick="pharmaStore.syncToCloud()" title="Sync to Cloud">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </button>
+                </div>
+                <div class="language-selector">
+                    <select id="languageSelect" onchange="pharmaStore.changeLanguage(this.value)">
+                        <option value="en">🇺🇸 English</option>
+                        <option value="es">🇪🇸 Español</option>
+                        <option value="fr">🇫🇷 Français</option>
+                    </select>
+                </div>
+                <span id="currentUser" class="user-info"></span>
+                <button id="changePasswordBtn" class="logout-btn" style="background:#6c757d">
+                    <i class="fas fa-key"></i> <span data-key="changePassword">Change Password</span>
+                </button>
+                <button id="logoutBtn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> <span data-key="logout">Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-menu" id="navMenu">
+            <button class="nav-btn active" data-section="dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </button>
+            <button class="nav-btn" data-section="drugs">
+                <i class="fas fa-pills"></i> Manage Drugs
+            </button>
+            <button class="nav-btn" data-section="sales">
+                <i class="fas fa-shopping-cart"></i> Sales
+            </button>
+            <button class="nav-btn" data-section="reports">
+                <i class="fas fa-chart-bar"></i> Reports
+            </button>
+            <button class="nav-btn" data-section="analytics">
+                <i class="fas fa-chart-line"></i> Analytics
+            </button>
+            <button class="nav-btn admin-only" data-section="audit" style="display: none;">
+                <i class="fas fa-history"></i> Audit Trail
+            </button>
+            <button class="nav-btn admin-only" data-section="admin" style="display: none;">
+                <i class="fas fa-cog"></i> Admin Panel
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <h2>Dashboard</h2>
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <i class="fas fa-pills"></i>
+                        <h3 id="totalDrugs">0</h3>
+                        <p>Total Drugs</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3 id="lowStock">0</h3>
+                        <p>Low Stock</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-dollar-sign"></i>
+                        <h3 id="todaySales">0</h3>
+                        <p>Today's Sales</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-calendar-day"></i>
+                        <h3 id="expiringSoon">0</h3>
+                        <p>Expiring Soon</p>
+                    </div>
+                </div>
+                <div class="dashboard-actions">
+                    <button class="action-btn" onclick="showSection('drugs')">
+                        <i class="fas fa-plus"></i> Add New Drug
+                    </button>
+                    <button class="action-btn" onclick="showSection('sales')">
+                        <i class="fas fa-shopping-cart"></i> Make Sale
+                    </button>
+                    <button class="action-btn" onclick="showSection('reports')">
+                        <i class="fas fa-chart-line"></i> View Reports
+                    </button>
+                </div>
+            </section>
+
+            <!-- Drugs Management Section -->
+            <section id="drugs" class="content-section">
+                <div class="section-header">
+                    <h2>Drug Management</h2>
+                    <button class="btn-primary" onclick="toggleDrugForm()">
+                        <i class="fas fa-plus"></i> Add New Drug
+                    </button>
+                </div>
+
+                <!-- Add/Edit Drug Form -->
+                <div id="drugForm" class="form-container" style="display: none;">
+                    <form id="drugFormElement" class="drug-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="drugName">Drug Name *</label>
+                                <input type="text" id="drugName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="drugCategory">Category *</label>
+                                <select id="drugCategory" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Antibiotics">Antibiotics</option>
+                                    <option value="Pain Relief">Pain Relief</option>
+                                    <option value="Vitamins">Vitamins</option>
+                                    <option value="Cough & Cold">Cough & Cold</option>
+                                    <option value="Digestive">Digestive</option>
+                                    <option value="Heart & Blood">Heart & Blood</option>
+                                    <option value="Diabetes">Diabetes</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="drugQuantity">Quantity *</label>
+                                <input type="number" id="drugQuantity" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="drugPrice">Price per Unit *</label>
+                                <input type="number" id="drugPrice" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="drugExpiry">Expiry Date *</label>
+                                <input type="date" id="drugExpiry" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="drugSupplier">Supplier</label>
+                                <input type="text" id="drugSupplier">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Save Drug</button>
+                            <button type="button" class="btn-secondary" onclick="cancelDrugForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Drug List -->
+                <div class="drug-list">
+                    <div class="list-header">
+                        <h3>Drug Inventory</h3>
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="drugSearch" placeholder="Search drugs...">
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="drugTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Expiry Date</th>
+                                    <th>Supplier</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drugTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sales Section -->
+            <section id="sales" class="content-section">
+                <h2>Sales Management</h2>
+                
+                <!-- Sales Form -->
+                <div class="sales-form-container">
+                    <form id="salesForm" class="sales-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="saleDrug">Select Drug *</label>
+                                <select id="saleDrug" required>
+                                    <option value="">Select Drug</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="saleQuantity">Quantity *</label>
+                                <input type="number" id="saleQuantity" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="salePrice">Price per Unit</label>
+                                <input type="number" id="salePrice" step="0.01" readonly>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="customerName">Customer Name</label>
+                                <input type="text" id="customerName" placeholder="Optional">
+                            </div>
+                            <div class="form-group">
+                                <label for="paymentMethod">Payment Method</label>
+                                <select id="paymentMethod">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="Mobile Money">Mobile Money</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-shopping-cart"></i> Process Sale
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Receipt Display -->
+                <div id="receiptContainer" class="receipt-container" style="display: none;">
+                    <div class="receipt-header">
+                        <h3>Receipt</h3>
+                        <button class="btn-primary" onclick="printReceipt()">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+                    <div id="receiptContent" class="receipt-content"></div>
+                </div>
+
+                <!-- Recent Sales -->
+                <div class="recent-sales">
+                    <h3>Recent Sales</h3>
+                    <div class="table-container">
+                        <table id="salesTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Drug</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                    <th>Customer</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salesTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Section -->
+            <!-- Analytics Dashboard Section -->
+            <section id="analytics" class="content-section">
+                <h2>Analytics Dashboard</h2>
+                
+                <!-- Analytics Overview -->
+                <div class="analytics-overview">
+                    <div class="analytics-card">
+                        <h3>Sales Performance</h3>
+                        <div class="chart-container">
+                            <canvas id="salesChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h3>Top Selling Drugs</h3>
+                        <div class="chart-container">
+                            <canvas id="topDrugsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h3>Sales by Category</h3>
+                        <div class="chart-container">
+                            <canvas id="categoryChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h3>Monthly Trends</h3>
+                        <div class="chart-container">
+                            <canvas id="monthlyChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Insights -->
+                <div class="analytics-insights">
+                    <h3>Key Insights</h3>
+                    <div id="insightsContainer" class="insights-grid">
+                        <!-- Dynamic insights will be populated here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="content-section">
+                <h2>Reports & Analytics</h2>
+                
+                <!-- Report Filters -->
+                <div class="report-filters">
+                    <div class="filter-group">
+                        <label for="reportType">Report Type</label>
+                        <select id="reportType">
+                            <option value="daily">Daily Sales</option>
+                            <option value="weekly">Weekly Sales</option>
+                            <option value="monthly">Monthly Sales</option>
+                            <option value="yearly">Yearly Sales</option>
+                            <option value="inventory">Inventory Report</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="reportDate">Date</label>
+                        <input type="date" id="reportDate">
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn-primary" onclick="generateReport()">
+                            <i class="fas fa-chart-bar"></i> Generate Report
+                        </button>
+                        <button class="btn-secondary" onclick="printReport()">
+                            <i class="fas fa-print"></i> Print Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Report Display -->
+                <div id="reportContainer" class="report-container" style="display: none;">
+                    <div class="report-header">
+                        <h3 id="reportTitle">Report</h3>
+                        <div class="report-summary">
+                            <div class="summary-item">
+                                <span class="label">Total Sales:</span>
+                                <span id="totalSalesAmount">$0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Items Sold:</span>
+                                <span id="totalItemsSold">0</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Transactions:</span>
+                                <span id="totalTransactions">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="reportContent" class="report-content">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Audit Trail Section -->
+            <section id="audit" class="content-section">
+                <h2>Audit Trail</h2>
+                
+                <!-- Audit Filters -->
+                <div class="audit-filters">
+                    <div class="filter-group">
+                        <label for="auditUser">User</label>
+                        <select id="auditUser">
+                            <option value="">All Users</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="auditAction">Action</label>
+                        <select id="auditAction">
+                            <option value="">All Actions</option>
+                            <option value="login">Login</option>
+                            <option value="logout">Logout</option>
+                            <option value="add_drug">Add Drug</option>
+                            <option value="edit_drug">Edit Drug</option>
+                            <option value="delete_drug">Delete Drug</option>
+                            <option value="sale">Sale</option>
+                            <option value="delete_sale">Delete Sale</option>
+                            <option value="change_password">Change Password</option>
+                            <option value="add_user">Add User</option>
+                            <option value="export_data">Export Data</option>
+                            <option value="import_data">Import Data</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="auditDate">Date Range</label>
+                        <input type="date" id="auditDate">
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn-primary" onclick="pharmaStore.filterAuditTrail()">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                        <button class="btn-secondary" onclick="pharmaStore.clearAuditFilters()">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Audit Trail Table -->
+                <div class="table-container">
+                    <table id="auditTable">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Admin Panel Section -->
+            <section id="admin" class="content-section">
+                <h2>Admin Panel</h2>
+                <div class="admin-actions">
+                    <button class="admin-btn" onclick="exportData()">
+                        <i class="fas fa-download"></i> Export Data
+                    </button>
+                    <button class="admin-btn" onclick="importData()">
+                        <i class="fas fa-upload"></i> Import Data
+                    </button>
+                    <button class="admin-btn" onclick="pharmaStore.syncToCloud()">
+                        <i class="fas fa-cloud-upload-alt"></i> Sync to Cloud
+                    </button>
+                    <button class="admin-btn" onclick="pharmaStore.syncFromCloud()">
+                        <i class="fas fa-cloud-download-alt"></i> Sync from Cloud
+                    </button>
+                    <button class="admin-btn" onclick="pharmaStore.setupCloudBackup()">
+                        <i class="fas fa-cloud"></i> Setup Auto Backup
+                    </button>
+                    <button class="admin-btn" onclick="clearAllData()">
+                        <i class="fas fa-trash"></i> Clear All Data
+                    </button>
+                </div>
+                <div class="admin-stats">
+                    <h3>System Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Users:</span>
+                            <span class="stat-value" id="totalUsers">2</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Sales:</span>
+                            <span class="stat-value" id="adminTotalSales">$0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Inventory Value:</span>
+                            <span class="stat-value" id="adminInventoryValue">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-container" id="userManagement">
+                    <div class="section-header">
+                        <h2>User Management (Admin Only)</h2>
+                    </div>
+                    <form id="addUserForm" class="drug-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="newUsername">Username *</label>
+                                <input type="text" id="newUsername" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword">Password *</label>
+                                <input type="password" id="newPassword" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="newUserType">Type *</label>
+                                <select id="newUserType" required>
+                                    <option value="admin">Admin</option>
+                                    <option value="user" selected>User</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary"><i class="fas fa-user-plus"></i> Add User</button>
+                        </div>
+                    </form>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Hidden file input for data import -->
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Change Password</h3>
+            <form id="changePasswordForm">
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="newPassword1">New Password</label>
+                        <input type="password" id="newPassword1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword2">Confirm New Password</label>
+                        <input type="password" id="newPassword2" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary"><i class="fas fa-key"></i> Update Password</button>
+                    <button type="button" class="btn-secondary" id="cancelChangePassword">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PWA Install Prompt -->
+    <div id="installPrompt" class="install-prompt" style="display: none;">
+        <div class="install-content">
+            <i class="fas fa-mobile-alt"></i>
+            <h3>Install PharmaStore App</h3>
+            <p>Install this app on your device for quick access and offline functionality.</p>
+            <div class="install-actions">
+                <button id="installBtn" class="btn-primary">Install App</button>
+                <button id="dismissInstall" class="btn-secondary">Not Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Worker Registration -->
+    <script>
+        // Register Service Worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installPrompt = document.getElementById('installPrompt');
+            if (installPrompt) {
+                installPrompt.style.display = 'block';
+            }
+        });
+
+        document.getElementById('installBtn')?.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                deferredPrompt = null;
+                document.getElementById('installPrompt').style.display = 'none';
+            }
+        });
+
+        document.getElementById('dismissInstall')?.addEventListener('click', () => {
+            document.getElementById('installPrompt').style.display = 'none';
+        });
+    </script>
+
+    <script src="app.js"></script>
+    
+</body>
+</html>
