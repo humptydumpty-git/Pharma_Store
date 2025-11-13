@@ -85,10 +85,6 @@
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
             </form>
-            <div class="login-footer">
-                <p>Default Admin: admin/password123</p>
-                <p>Default User: user/user123</p>
-            </div>
         </div>
     </div>
 
@@ -603,6 +599,9 @@
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn-primary"><i class="fas fa-user-plus"></i> Add User</button>
+                            <button type="button" class="btn-secondary" id="cancelEditUser" onclick="pharmaStore.cancelEditUser()" style="display: none;">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
                         </div>
                     </form>
                     <div class="table-container">
@@ -610,7 +609,9 @@
                             <thead>
                                 <tr>
                                     <th>Username</th>
-                                    <th>Type</th>
+                                    <th>Role</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="usersTableBody"></tbody>

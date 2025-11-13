@@ -6,10 +6,27 @@ class PharmaStore {
         this.drugs = this.loadData('drugs') || [];
         this.sales = this.loadData('sales') || [];
         const loadedUsers = this.loadData('users');
-        this.users = Array.isArray(loadedUsers) && loadedUsers.length > 0 ? loadedUsers : [
-            { username: 'admin', password: 'password123', type: 'admin' },
-            { username: 'user', password: 'user123', type: 'user' }
-        ];
+        if (Array.isArray(loadedUsers) && loadedUsers.length > 0) {
+            // Ensure all users have createdAt field
+            let needsUpdate = false;
+            this.users = loadedUsers.map(user => {
+                if (!user.createdAt) {
+                    user.createdAt = new Date().toISOString();
+                    needsUpdate = true;
+                }
+                return user;
+            });
+            // Save if we updated any users
+            if (needsUpdate) {
+                this.saveData('users', this.users);
+            }
+        } else {
+            this.users = [
+                { username: 'admin', password: 'password123', type: 'admin', createdAt: new Date().toISOString() },
+                { username: 'user', password: 'user123', type: 'user', createdAt: new Date().toISOString() }
+            ];
+            this.saveData('users', this.users);
+        }
         this.auditLog = this.loadData('auditLog') || [];
         this.currentLanguage = this.loadData('language') || 'en';
         this.translations = this.getTranslations();
@@ -204,7 +221,7 @@ class PharmaStore {
     // Dashboard
     updateDashboard() {
         const totalDrugs = this.drugs.length;
-        const lowStock = this.drugs.filter(drug => drug.quantity <= 10).length;
+        const lowStock = this.drugs.filter(drug => drug.quantity <= 3).length;
         const todaySales = this.getTodaySales().reduce((sum, sale) => sum + sale.total, 0);
         const expiringSoon = this.drugs.filter(drug => {
             const expiryDate = new Date(drug.expiry);
@@ -292,7 +309,7 @@ class PharmaStore {
             row.innerHTML = `
                 <td>${drug.name}</td>
                 <td>${drug.category}</td>
-                <td class="${drug.quantity <= 10 ? 'text-danger' : ''}">${drug.quantity}</td>
+                <td class="${drug.quantity <= 3 ? 'text-danger' : ''}">${drug.quantity}</td>
                 <td>$${drug.price.toFixed(2)}</td>
                 <td>${this.formatDate(drug.expiry)}</td>
                 <td>${drug.supplier}</td>
@@ -662,7 +679,7 @@ class PharmaStore {
         document.getElementById('reportTitle').textContent = title;
         
         const totalValue = this.drugs.reduce((sum, drug) => sum + (drug.quantity * drug.price), 0);
-        const lowStockItems = this.drugs.filter(drug => drug.quantity <= 10);
+        const lowStockItems = this.drugs.filter(drug => drug.quantity <= 3);
         const expiringSoon = this.drugs.filter(drug => {
             const expiryDate = new Date(drug.expiry);
             const thirtyDaysFromNow = new Date();
@@ -700,7 +717,7 @@ class PharmaStore {
         
         this.drugs.forEach(drug => {
             const value = drug.quantity * drug.price;
-            const isLowStock = drug.quantity <= 10;
+            const isLowStock = drug.quantity <= 3;
             const isExpiringSoon = new Date(drug.expiry) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
             let status = 'OK';
             
@@ -934,22 +951,84 @@ class PharmaStore {
         const username = document.getElementById('newUsername').value.trim();
         const password = document.getElementById('newPassword').value;
         const type = document.getElementById('newUserType').value;
+        const isEdit = document.getElementById('addUserForm').dataset.editUsername;
 
         if (!username || !password || !type) {
             this.showMessage('Please fill all fields', 'error');
             return;
         }
-        const exists = this.users.some(u => u.username === username);
-        if (exists) {
-            this.showMessage('Username already exists', 'error');
+
+        // Password validation
+        if (password.length < 4) {
+            this.showMessage('Password must be at least 4 characters long', 'error');
             return;
         }
-        this.users.push({ username, password, type });
-        this.saveData('users', this.users);
+
+        if (isEdit) {
+            // Edit existing user
+            const userIndex = this.users.findIndex(u => u.username === isEdit);
+            if (userIndex === -1) {
+                this.showMessage('User not found', 'error');
+                return;
+            }
+
+            // Prevent changing the last admin to user
+            if (this.users[userIndex].type === 'admin' && type === 'user') {
+                const adminCount = this.users.filter(u => u.type === 'admin').length;
+                if (adminCount <= 1) {
+                    this.showMessage('Cannot change the last admin to user. At least one admin is required.', 'error');
+                    return;
+                }
+            }
+
+            this.users[userIndex].username = username;
+            this.users[userIndex].password = password;
+            this.users[userIndex].type = type;
+            this.users[userIndex].updatedAt = new Date().toISOString();
+
+            // Update current user if editing self
+            if (this.currentUser && this.currentUser.username === isEdit) {
+                this.currentUser.username = username;
+                this.currentUser.password = password;
+                this.currentUser.type = type;
+            }
+
+            this.saveDataWithSync('users', this.users);
+            this.cancelEditUser();
+            this.renderUsersTable();
+            this.showMessage('User updated successfully', 'success');
+            this.logAuditEvent('edit_user', `Updated user: ${username} (${type})`);
+        } else {
+            // Add new user
+            const exists = this.users.some(u => u.username === username);
+            if (exists) {
+                this.showMessage('Username already exists', 'error');
+                return;
+            }
+
+            const newUser = {
+                username,
+                password,
+                type,
+                createdAt: new Date().toISOString()
+            };
+
+            this.users.push(newUser);
+            this.saveDataWithSync('users', this.users);
+            document.getElementById('addUserForm').reset();
+            this.renderUsersTable();
+            this.showMessage('User added successfully', 'success');
+            this.logAuditEvent('add_user', `Added new user: ${username} (${type})`);
+        }
+    }
+
+    cancelEditUser() {
         document.getElementById('addUserForm').reset();
-        this.renderUsersTable();
-        this.showMessage('User added successfully', 'success');
-        this.logAuditEvent('add_user', `Added new user: ${username} (${type})`);
+        document.getElementById('addUserForm').dataset.editUsername = '';
+        const submitBtn = document.getElementById('addUserForm').querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> Add User';
+        const cancelBtn = document.getElementById('cancelEditUser');
+        if (cancelBtn) cancelBtn.style.display = 'none';
     }
 
     renderUsersTable() {
@@ -960,13 +1039,94 @@ class PharmaStore {
         tbody.innerHTML = '';
         this.users.forEach(u => {
             const row = document.createElement('tr');
+            const createdAt = u.createdAt ? this.formatDate(u.createdAt) : 'N/A';
+            const isCurrentUser = this.currentUser && this.currentUser.username === u.username;
+            const isLastAdmin = u.type === 'admin' && this.users.filter(usr => usr.type === 'admin').length === 1;
+            
             row.innerHTML = `
-                <td>${u.username}</td>
-                <td>${u.type}</td>
+                <td>${u.username} ${isCurrentUser ? '<span style="color: #667eea; font-size: 0.8rem;">(You)</span>' : ''}</td>
+                <td><span class="badge ${u.type === 'admin' ? 'badge-admin' : 'badge-user'}">${u.type.toUpperCase()}</span></td>
+                <td>${createdAt}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-edit" onclick="pharmaStore.editUser('${u.username}')" title="Edit User">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-delete" onclick="pharmaStore.deleteUser('${u.username}')" 
+                                ${isCurrentUser ? 'disabled title="Cannot delete your own account"' : ''}
+                                ${isLastAdmin ? 'disabled title="Cannot delete the last admin"' : ''}
+                                title="Delete User">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
             `;
             tbody.appendChild(row);
         });
         totalUsersEl.textContent = String(this.users.length);
+    }
+
+    editUser(username) {
+        if (!this.isAdmin) {
+            this.showMessage('Only admin can edit users', 'error');
+            return;
+        }
+
+        const user = this.users.find(u => u.username === username);
+        if (!user) {
+            this.showMessage('User not found', 'error');
+            return;
+        }
+
+        document.getElementById('newUsername').value = user.username;
+        document.getElementById('newPassword').value = user.password;
+        document.getElementById('newUserType').value = user.type;
+        document.getElementById('addUserForm').dataset.editUsername = username;
+        
+        const submitBtn = document.getElementById('addUserForm').querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> Update User';
+        
+        const cancelBtn = document.getElementById('cancelEditUser');
+        if (cancelBtn) cancelBtn.style.display = 'inline-block';
+        
+        // Scroll to form
+        document.getElementById('addUserForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    deleteUser(username) {
+        if (!this.isAdmin) {
+            this.showMessage('Only admin can delete users', 'error');
+            return;
+        }
+
+        const user = this.users.find(u => u.username === username);
+        if (!user) {
+            this.showMessage('User not found', 'error');
+            return;
+        }
+
+        // Prevent deleting current user
+        if (this.currentUser && this.currentUser.username === username) {
+            this.showMessage('Cannot delete your own account', 'error');
+            return;
+        }
+
+        // Prevent deleting the last admin
+        if (user.type === 'admin') {
+            const adminCount = this.users.filter(u => u.type === 'admin').length;
+            if (adminCount <= 1) {
+                this.showMessage('Cannot delete the last admin. At least one admin is required.', 'error');
+                return;
+            }
+        }
+
+        if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+            this.users = this.users.filter(u => u.username !== username);
+            this.saveDataWithSync('users', this.users);
+            this.renderUsersTable();
+            this.showMessage('User deleted successfully', 'success');
+            this.logAuditEvent('delete_user', `Deleted user: ${username}`);
+        }
     }
 
     // Utility Functions
@@ -1244,7 +1404,7 @@ class PharmaStore {
             },
             {
                 title: 'Low Stock Items',
-                content: this.drugs.filter(drug => drug.quantity <= 10).length.toString()
+                content: this.drugs.filter(drug => drug.quantity <= 3).length.toString()
             },
             {
                 title: 'Expiring Soon',
@@ -2008,4 +2168,8 @@ function filterAuditTrail() {
 
 function clearAuditFilters() {
     pharmaStore.clearAuditFilters();
+}
+
+function cancelEditUser() {
+    pharmaStore.cancelEditUser();
 }

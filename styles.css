@@ -458,6 +458,32 @@ tr:hover {
     background: #c82333;
 }
 
+.btn-delete:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Badge Styles */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-admin {
+    background: #667eea;
+    color: white;
+}
+
+.badge-user {
+    background: #6c757d;
+    color: white;
+}
+
 /* Search Box */
 .search-box {
     position: relative;
