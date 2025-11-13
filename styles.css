@@ -484,6 +484,19 @@ tr:hover {
     color: white;
 }
 
+/* Stock Adjustment Styles */
+.text-success {
+    color: #28a745 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.text-info {
+    color: #17a2b8 !important;
+}
+
 /* Search Box */
 .search-box {
     position: relative;

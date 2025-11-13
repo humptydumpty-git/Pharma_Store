@@ -5,6 +5,7 @@ class PharmaStore {
         this.isAdmin = false;
         this.drugs = this.loadData('drugs') || [];
         this.sales = this.loadData('sales') || [];
+        this.stockAdjustments = this.loadData('stockAdjustments') || [];
         const loadedUsers = this.loadData('users');
         if (Array.isArray(loadedUsers) && loadedUsers.length > 0) {
             // Ensure all users have createdAt field
@@ -119,6 +120,23 @@ class PharmaStore {
             });
         }
 
+        // Stock adjustment form
+        const stockAdjustmentForm = document.getElementById('stockAdjustmentForm');
+        if (stockAdjustmentForm) {
+            stockAdjustmentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleStockAdjustment();
+            });
+        }
+
+        // Stock adjustment drug selection
+        const adjustmentDrugSelect = document.getElementById('adjustmentDrug');
+        if (adjustmentDrugSelect) {
+            adjustmentDrugSelect.addEventListener('change', (e) => {
+                this.updateAdjustmentCurrentStock(e.target.value);
+            });
+        }
+
         // Multi-item sales
         document.getElementById('addSaleItemBtn')?.addEventListener('click', () => this.addSaleItem());
         document.getElementById('processMultiSaleBtn')?.addEventListener('click', () => this.processMultiSale());
@@ -184,6 +202,17 @@ class PharmaStore {
             }
         }
 
+        // Render admin-only stock adjustment visibility - always show for admin
+        const stockAdjSection = document.getElementById('stockAdjustmentSection');
+        if (stockAdjSection) {
+            if (this.isAdmin) {
+                stockAdjSection.style.display = 'block';
+                stockAdjSection.style.visibility = 'visible';
+            } else {
+                stockAdjSection.style.display = 'none';
+            }
+        }
+
         this.renderUsersTable();
         this.logAuditEvent('login', `User ${this.currentUser.username} logged in`);
     }
@@ -234,7 +263,22 @@ class PharmaStore {
                     userMgmt.style.display = 'none';
                 }
             }
+            
+            // Ensure stock adjustment section is visible when viewing admin panel
+            const stockAdjSection = document.getElementById('stockAdjustmentSection');
+            if (stockAdjSection) {
+                if (this.isAdmin) {
+                    stockAdjSection.style.display = 'block';
+                    stockAdjSection.style.visibility = 'visible';
+                } else {
+                    stockAdjSection.style.display = 'none';
+                }
+            }
+            
+            // Populate stock adjustment drug list
+            this.populateAdjustmentDrugs();
             this.renderUsersTable();
+            this.renderStockAdjustments();
         }
     }
 
@@ -834,6 +878,7 @@ class PharmaStore {
             drugs: this.drugs,
             sales: this.sales,
             users: this.users,
+            stockAdjustments: this.stockAdjustments,
             exportDate: new Date().toISOString()
         };
         
@@ -864,10 +909,12 @@ class PharmaStore {
                         this.drugs = data.drugs || [];
                         this.sales = data.sales || [];
                         this.users = data.users || this.users; // Keep current users
+                        this.stockAdjustments = data.stockAdjustments || [];
                         
                         this.saveData('drugs', this.drugs);
                         this.saveData('sales', this.sales);
                         this.saveData('users', this.users);
+                        this.saveData('stockAdjustments', this.stockAdjustments);
                         
                         this.renderDrugs();
                         this.renderSales();
@@ -890,13 +937,15 @@ class PharmaStore {
             if (confirm('This action cannot be undone. Click OK to continue.')) {
                 this.drugs = [];
                 this.sales = [];
+                this.stockAdjustments = [];
                 this.users = [
-                    { username: 'admin', password: 'password123', type: 'admin' },
-                    { username: 'user', password: 'user123', type: 'user' }
+                    { username: 'admin', password: 'password123', type: 'admin', createdAt: new Date().toISOString() },
+                    { username: 'user', password: 'user123', type: 'user', createdAt: new Date().toISOString() }
                 ];
                 
                 this.saveData('drugs', this.drugs);
                 this.saveData('sales', this.sales);
+                this.saveData('stockAdjustments', this.stockAdjustments);
                 this.saveData('users', this.users);
                 
                 this.renderDrugs();
@@ -914,6 +963,7 @@ class PharmaStore {
             drugs: this.drugs,
             sales: this.sales,
             users: this.users,
+            stockAdjustments: this.stockAdjustments,
             backupDate: new Date().toISOString(),
             version: '1.0'
         };
@@ -1147,6 +1197,159 @@ class PharmaStore {
             this.showMessage('User deleted successfully', 'success');
             this.logAuditEvent('delete_user', `Deleted user: ${username}`);
         }
+    }
+
+    // Stock Adjustment Functions
+    populateAdjustmentDrugs() {
+        const select = document.getElementById('adjustmentDrug');
+        if (!select) return;
+        select.innerHTML = '<option value="">Select Drug</option>';
+        
+        this.drugs.forEach(drug => {
+            const option = document.createElement('option');
+            option.value = drug.id;
+            option.textContent = `${drug.name} (Current Stock: ${drug.quantity})`;
+            select.appendChild(option);
+        });
+    }
+
+    updateAdjustmentCurrentStock(drugId) {
+        const drug = this.drugs.find(d => d.id === drugId);
+        const currentStockEl = document.getElementById('adjustmentCurrentStock');
+        
+        if (currentStockEl) {
+            if (drug) {
+                currentStockEl.textContent = drug.quantity;
+            } else {
+                currentStockEl.textContent = '0';
+            }
+        }
+    }
+
+    handleStockAdjustment() {
+        if (!this.isAdmin) {
+            this.showMessage('Only admin can adjust stock', 'error');
+            return;
+        }
+
+        const drugId = document.getElementById('adjustmentDrug').value;
+        const adjustmentType = document.getElementById('adjustmentType').value;
+        const quantity = parseInt(document.getElementById('adjustmentQuantity').value);
+        const reason = document.getElementById('adjustmentReason').value.trim();
+        const notes = document.getElementById('adjustmentNotes').value.trim();
+
+        if (!drugId || !adjustmentType || !quantity || quantity <= 0) {
+            this.showMessage('Please fill in all required fields', 'error');
+            return;
+        }
+
+        if (!reason) {
+            this.showMessage('Please provide a reason for the adjustment', 'error');
+            return;
+        }
+
+        const drug = this.drugs.find(d => d.id === drugId);
+        if (!drug) {
+            this.showMessage('Drug not found', 'error');
+            return;
+        }
+
+        const oldQuantity = drug.quantity;
+        let newQuantity;
+
+        if (adjustmentType === 'increase') {
+            newQuantity = oldQuantity + quantity;
+        } else if (adjustmentType === 'decrease') {
+            newQuantity = oldQuantity - quantity;
+            if (newQuantity < 0) {
+                if (!confirm(`This will result in negative stock (${newQuantity}). Continue?`)) {
+                    return;
+                }
+            }
+        } else {
+            // Set to specific quantity
+            newQuantity = quantity;
+        }
+
+        // Create adjustment record
+        const adjustment = {
+            id: Date.now().toString(),
+            drugId: drugId,
+            drugName: drug.name,
+            oldQuantity: oldQuantity,
+            adjustmentType: adjustmentType,
+            adjustmentAmount: adjustmentType === 'set' ? quantity : quantity,
+            newQuantity: newQuantity,
+            reason: reason,
+            notes: notes || '',
+            adjustedBy: this.currentUser.username,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toTimeString().split(' ')[0],
+            timestamp: new Date().toISOString()
+        };
+
+        // Update drug quantity
+        drug.quantity = newQuantity;
+
+        // Save adjustments and drugs
+        this.stockAdjustments.push(adjustment);
+        this.saveDataWithSync('stockAdjustments', this.stockAdjustments);
+        this.saveDataWithSync('drugs', this.drugs);
+
+        // Update UI
+        this.renderDrugs();
+        this.populateAdjustmentDrugs();
+        this.renderStockAdjustments();
+        this.updateDashboard();
+        
+        // Reset form
+        document.getElementById('stockAdjustmentForm').reset();
+        document.getElementById('adjustmentCurrentStock').textContent = '0';
+
+        this.showMessage(`Stock adjusted successfully. New quantity: ${newQuantity}`, 'success');
+        this.logAuditEvent('stock_adjustment', 
+            `${adjustmentType === 'increase' ? 'Increased' : adjustmentType === 'decrease' ? 'Decreased' : 'Set'} stock for ${drug.name} from ${oldQuantity} to ${newQuantity}. Reason: ${reason}`);
+    }
+
+    renderStockAdjustments() {
+        const tbody = document.getElementById('stockAdjustmentsTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        
+        // Show most recent first
+        const recentAdjustments = [...this.stockAdjustments].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        ).slice(0, 50); // Show last 50 adjustments
+
+        if (recentAdjustments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">No stock adjustments recorded</td></tr>';
+            return;
+        }
+
+        recentAdjustments.forEach(adj => {
+            const row = document.createElement('tr');
+            const typeClass = adj.adjustmentType === 'increase' ? 'text-success' : 
+                           adj.adjustmentType === 'decrease' ? 'text-danger' : 'text-info';
+            const typeIcon = adj.adjustmentType === 'increase' ? 'fa-arrow-up' : 
+                           adj.adjustmentType === 'decrease' ? 'fa-arrow-down' : 'fa-equals';
+            const typeLabel = adj.adjustmentType === 'increase' ? 'Increase' : 
+                            adj.adjustmentType === 'decrease' ? 'Decrease' : 'Set';
+
+            row.innerHTML = `
+                <td>${this.formatDate(adj.date)} ${adj.time}</td>
+                <td>${adj.drugName}</td>
+                <td>${adj.oldQuantity}</td>
+                <td class="${typeClass}">
+                    <i class="fas ${typeIcon}"></i> ${typeLabel} ${adj.adjustmentAmount}
+                </td>
+                <td><strong>${adj.newQuantity}</strong></td>
+                <td>${adj.reason}</td>
+                <td>${adj.notes || '-'}</td>
+                <td>${adj.adjustedBy}</td>
+            `;
+            tbody.appendChild(row);
+        });
     }
 
     // Utility Functions
@@ -1683,6 +1886,10 @@ class PharmaStore {
             const auditRef = window.Firebase.doc(db, 'pharmastore', 'auditLog');
             batch.set(auditRef, { data: this.auditLog, lastUpdated: new Date() });
 
+            // Sync stock adjustments
+            const adjustmentsRef = window.Firebase.doc(db, 'pharmastore', 'stockAdjustments');
+            batch.set(adjustmentsRef, { data: this.stockAdjustments, lastUpdated: new Date() });
+
             await batch.commit();
             
             // Update last sync time
@@ -1720,6 +1927,7 @@ class PharmaStore {
             const salesSnapshot = await window.Firebase.getDoc(window.Firebase.doc(db, 'pharmastore', 'sales'));
             const usersSnapshot = await window.Firebase.getDoc(window.Firebase.doc(db, 'pharmastore', 'users'));
             const auditSnapshot = await window.Firebase.getDoc(window.Firebase.doc(db, 'pharmastore', 'auditLog'));
+            const adjustmentsSnapshot = await window.Firebase.getDoc(window.Firebase.doc(db, 'pharmastore', 'stockAdjustments'));
 
             let hasChanges = false;
 
@@ -1768,6 +1976,18 @@ class PharmaStore {
                 if (cloudTime > localTime) {
                     this.auditLog = cloudAudit;
                     this.saveData('auditLog', this.auditLog);
+                    hasChanges = true;
+                }
+            }
+
+            if (adjustmentsSnapshot.exists()) {
+                const cloudAdjustments = adjustmentsSnapshot.data().data;
+                const cloudTime = adjustmentsSnapshot.data().lastUpdated.toDate();
+                const localTime = new Date(this.loadData('lastSyncTime') || 0);
+                
+                if (cloudTime > localTime) {
+                    this.stockAdjustments = cloudAdjustments;
+                    this.saveData('stockAdjustments', this.stockAdjustments);
                     hasChanges = true;
                 }
             }

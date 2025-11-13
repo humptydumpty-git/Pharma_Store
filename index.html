@@ -618,6 +618,97 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Stock Adjustment Section -->
+                <div class="form-container" id="stockAdjustmentSection">
+                    <div class="section-header">
+                        <h2>Stock Adjustment (Admin Only)</h2>
+                        <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Adjust inventory quantities for corrections, damaged items, or discrepancies</p>
+                    </div>
+                    <form id="stockAdjustmentForm" class="drug-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="adjustmentDrug">Select Drug *</label>
+                                <select id="adjustmentDrug" required>
+                                    <option value="">Select Drug</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Current Stock</label>
+                                <div style="padding: 12px 15px; background: #f8f9fa; border-radius: 8px; font-weight: 600; color: #667eea;">
+                                    <span id="adjustmentCurrentStock">0</span> units
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="adjustmentType">Adjustment Type *</label>
+                                <select id="adjustmentType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="increase">Increase Stock</option>
+                                    <option value="decrease">Decrease Stock</option>
+                                    <option value="set">Set to Specific Quantity</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="adjustmentQuantity">Quantity *</label>
+                                <input type="number" id="adjustmentQuantity" min="1" required placeholder="Enter quantity">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="adjustmentReason">Reason *</label>
+                                <select id="adjustmentReason" required>
+                                    <option value="">Select Reason</option>
+                                    <option value="Physical Count Correction">Physical Count Correction</option>
+                                    <option value="Damaged Items">Damaged Items</option>
+                                    <option value="Expired Items">Expired Items</option>
+                                    <option value="Theft/Loss">Theft/Loss</option>
+                                    <option value="Return from Customer">Return from Customer</option>
+                                    <option value="Supplier Return">Supplier Return</option>
+                                    <option value="Found Items">Found Items</option>
+                                    <option value="System Error Correction">System Error Correction</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="adjustmentNotes">Notes</label>
+                                <input type="text" id="adjustmentNotes" placeholder="Additional details (optional)">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-adjust"></i> Apply Adjustment
+                            </button>
+                            <button type="reset" class="btn-secondary">
+                                <i class="fas fa-redo"></i> Reset
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Stock Adjustment History -->
+                    <div style="margin-top: 2rem;">
+                        <h3 style="margin-bottom: 1rem;">Adjustment History</h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date/Time</th>
+                                        <th>Drug</th>
+                                        <th>Old Qty</th>
+                                        <th>Adjustment</th>
+                                        <th>New Qty</th>
+                                        <th>Reason</th>
+                                        <th>Notes</th>
+                                        <th>Adjusted By</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stockAdjustmentsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
