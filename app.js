@@ -202,15 +202,11 @@ class PharmaStore {
             }
         }
 
-        // Render admin-only stock adjustment visibility - always show for admin
+        // Stock adjustment section is visible to all users (audit trail tracks all changes)
         const stockAdjSection = document.getElementById('stockAdjustmentSection');
         if (stockAdjSection) {
-            if (this.isAdmin) {
-                stockAdjSection.style.display = 'block';
-                stockAdjSection.style.visibility = 'visible';
-            } else {
-                stockAdjSection.style.display = 'none';
-            }
+            stockAdjSection.style.display = 'block';
+            stockAdjSection.style.visibility = 'visible';
         }
 
         this.renderUsersTable();
@@ -264,15 +260,11 @@ class PharmaStore {
                 }
             }
             
-            // Ensure stock adjustment section is visible when viewing admin panel
+            // Stock adjustment section is visible to all users (audit trail tracks all changes)
             const stockAdjSection = document.getElementById('stockAdjustmentSection');
             if (stockAdjSection) {
-                if (this.isAdmin) {
-                    stockAdjSection.style.display = 'block';
-                    stockAdjSection.style.visibility = 'visible';
-                } else {
-                    stockAdjSection.style.display = 'none';
-                }
+                stockAdjSection.style.display = 'block';
+                stockAdjSection.style.visibility = 'visible';
             }
             
             // Populate stock adjustment drug list
@@ -1227,11 +1219,6 @@ class PharmaStore {
     }
 
     handleStockAdjustment() {
-        if (!this.isAdmin) {
-            this.showMessage('Only admin can adjust stock', 'error');
-            return;
-        }
-
         const drugId = document.getElementById('adjustmentDrug').value;
         const adjustmentType = document.getElementById('adjustmentType').value;
         const quantity = parseInt(document.getElementById('adjustmentQuantity').value);
