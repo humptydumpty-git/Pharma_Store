@@ -169,7 +169,7 @@ async function syncOfflineData() {
 // Get offline data from storage
 async function getOfflineData() {
   return new Promise((resolve) => {
-    if ('indexedDB' in window) {
+    if ('indexedDB' in self) {
       // Use IndexedDB for better offline storage
       const request = indexedDB.open('PharmaStoreOffline', 1);
       request.onsuccess = (event) => {
@@ -182,10 +182,12 @@ async function getOfflineData() {
           resolve(getAllRequest.result);
         };
       };
+      request.onerror = () => {
+        resolve([]);
+      };
     } else {
-      // Fallback to localStorage
-      const data = localStorage.getItem('pharmastore_offline_data');
-      resolve(data ? JSON.parse(data) : []);
+      // Fallback - return empty array in service worker context
+      resolve([]);
     }
   });
 }
@@ -199,17 +201,23 @@ async function sendOfflineDataToServer(data) {
 
 // Clear offline data
 async function clearOfflineData() {
-  if ('indexedDB' in window) {
-    const request = indexedDB.open('PharmaStoreOffline', 1);
-    request.onsuccess = (event) => {
-      const db = event.target.result;
-      const transaction = db.transaction(['offlineData'], 'readwrite');
-      const store = transaction.objectStore('offlineData');
-      store.clear();
-    };
-  } else {
-    localStorage.removeItem('pharmastore_offline_data');
-  }
+  return new Promise((resolve) => {
+    if ('indexedDB' in self) {
+      const request = indexedDB.open('PharmaStoreOffline', 1);
+      request.onsuccess = (event) => {
+        const db = event.target.result;
+        const transaction = db.transaction(['offlineData'], 'readwrite');
+        const store = transaction.objectStore('offlineData');
+        store.clear();
+        resolve();
+      };
+      request.onerror = () => {
+        resolve();
+      };
+    } else {
+      resolve();
+    }
+  });
 }
 
 // Message handling for communication with main thread

@@ -54,21 +54,27 @@ class PharmaStore {
             this.handleDrugSubmit();
         });
 
-        // Sales form
-        document.getElementById('salesForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleSaleSubmit();
-        });
+        // Sales form (if exists - for backward compatibility)
+        const salesForm = document.getElementById('salesForm');
+        if (salesForm) {
+            salesForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleSaleSubmit();
+            });
+        }
 
         // Drug search
         document.getElementById('drugSearch').addEventListener('input', (e) => {
             this.filterDrugs(e.target.value);
         });
 
-        // Sales drug selection
-        document.getElementById('saleDrug').addEventListener('change', (e) => {
-            this.updateSalePrice(e.target.value);
-        });
+        // Sales drug selection (if old form exists)
+        const saleDrugEl = document.getElementById('saleDrug');
+        if (saleDrugEl) {
+            saleDrugEl.addEventListener('change', (e) => {
+                this.updateSalePrice(e.target.value);
+            });
+        }
 
         // Report date change
         document.getElementById('reportDate').addEventListener('change', () => {
@@ -95,6 +101,10 @@ class PharmaStore {
                 this.handleAddUser();
             });
         }
+
+        // Multi-item sales
+        document.getElementById('addSaleItemBtn')?.addEventListener('click', () => this.addSaleItem());
+        document.getElementById('processMultiSaleBtn')?.addEventListener('click', () => this.processMultiSale());
     }
 
     // Authentication
@@ -176,6 +186,12 @@ class PharmaStore {
             this.renderDrugs();
         } else if (sectionId === 'sales') {
             this.renderSales();
+            this.populateSalesDrugs();
+            // Add one empty row if table is empty
+            const tbody = document.getElementById('saleItemsBody');
+            if (tbody && tbody.children.length === 0) {
+                this.addSaleItem();
+            }
         } else if (sectionId === 'reports') {
             this.updateReportDate();
         } else if (sectionId === 'analytics') {
@@ -338,6 +354,7 @@ class PharmaStore {
     // Sales Management
     populateSalesDrugs() {
         const select = document.getElementById('saleDrug');
+        if (!select) return;
         select.innerHTML = '<option value="">Select Drug</option>';
         
         this.drugs.forEach(drug => {
@@ -345,6 +362,7 @@ class PharmaStore {
                 const option = document.createElement('option');
                 option.value = drug.id;
                 option.textContent = `${drug.name} (Stock: ${drug.quantity})`;
+                option.setAttribute('data-price', drug.price);
                 select.appendChild(option);
             }
         });
@@ -354,6 +372,8 @@ class PharmaStore {
         const drug = this.drugs.find(d => d.id === drugId);
         const priceInput = document.getElementById('salePrice');
         
+        if (!priceInput) return; // Old form doesn't exist
+        
         if (drug) {
             priceInput.value = drug.price;
         } else {
@@ -362,11 +382,22 @@ class PharmaStore {
     }
 
     handleSaleSubmit() {
-        const drugId = document.getElementById('saleDrug').value;
-        const quantity = parseInt(document.getElementById('saleQuantity').value);
-        const price = parseFloat(document.getElementById('salePrice').value);
-        const customerName = document.getElementById('customerName').value;
-        const paymentMethod = document.getElementById('paymentMethod').value;
+        const saleDrugEl = document.getElementById('saleDrug');
+        const saleQuantityEl = document.getElementById('saleQuantity');
+        const salePriceEl = document.getElementById('salePrice');
+        const customerNameEl = document.getElementById('customerName');
+        const paymentMethodEl = document.getElementById('paymentMethod');
+        
+        if (!saleDrugEl || !saleQuantityEl || !salePriceEl) {
+            this.showMessage('Old sales form not available. Please use the multi-item sales form.', 'error');
+            return;
+        }
+        
+        const drugId = saleDrugEl.value;
+        const quantity = parseInt(saleQuantityEl.value);
+        const price = parseFloat(salePriceEl.value);
+        const customerName = customerNameEl ? customerNameEl.value : 'Walk-in Customer';
+        const paymentMethod = paymentMethodEl ? paymentMethodEl.value : 'Cash';
 
         if (!drugId || !quantity || !price) {
             this.showMessage('Please fill in all required fields', 'error');
@@ -412,8 +443,11 @@ class PharmaStore {
         this.showMessage('Sale processed successfully', 'success');
         this.logAuditEvent('sale', `Sold ${quantity} units of ${sale.drugName} for $${sale.total.toFixed(2)}`);
 
-        // Reset form
-        document.getElementById('salesForm').reset();
+        // Reset form (if exists)
+        const salesForm = document.getElementById('salesForm');
+        if (salesForm) {
+            salesForm.reset();
+        }
     }
 
     showReceipt(sale) {
@@ -747,8 +781,8 @@ class PharmaStore {
 
         // Remove sale
         this.sales.splice(saleIndex, 1);
-        this.saveData('sales', this.sales);
-        this.saveData('drugs', this.drugs);
+        this.saveDataWithSync('sales', this.sales);
+        this.saveDataWithSync('drugs', this.drugs);
 
         this.renderSales();
         this.populateSalesDrugs();
@@ -1682,6 +1716,240 @@ class PharmaStore {
         // Auto-sync to cloud if enabled and online
         if (this.cloudSyncEnabled && this.isOnline && this.firebaseInitialized) {
             setTimeout(() => this.syncToCloud(), 1000);
+        }
+    }
+
+    // Multi-item sales helpers
+    addSaleItem(initial = {}) {
+        const tbody = document.getElementById('saleItemsBody');
+        if (!tbody) return;
+        const tr = document.createElement('tr');
+
+        // Create select element with drug options
+        const select = document.createElement('select');
+        select.className = 'sale-drug-select';
+        select.innerHTML = '<option value="">Select Drug</option>';
+        
+        // Populate with available drugs
+        this.drugs.forEach(drug => {
+            if (drug.quantity > 0) {
+                const option = document.createElement('option');
+                option.value = drug.id;
+                option.textContent = `${drug.name} (Stock: ${drug.quantity})`;
+                option.setAttribute('data-price', drug.price);
+                select.appendChild(option);
+            }
+        });
+
+        tr.innerHTML = `
+            <td></td>
+            <td><input type="number" min="1" value="${initial.quantity || 1}" class="sale-qty"></td>
+            <td><input type="number" step="0.01" value="${initial.price || 0}" class="sale-unit-price" readonly></td>
+            <td class="sale-line-total">${((initial.quantity||1)*(initial.price||0)).toFixed(2)}</td>
+            <td><button type="button" class="remove-sale-item btn-secondary">Remove</button></td>
+        `;
+        
+        // Insert select into first cell
+        const firstCell = tr.querySelector('td:first-child');
+        firstCell.appendChild(select);
+        tbody.appendChild(tr);
+
+        const qty = tr.querySelector('.sale-qty');
+        const priceInput = tr.querySelector('.sale-unit-price');
+        const removeBtn = tr.querySelector('.remove-sale-item');
+
+        // When drug selection changes, read price from data-price attribute or find drug
+        select.addEventListener('change', () => {
+            const opt = select.options[select.selectedIndex];
+            let price = 0;
+            
+            // Try to get price from data attribute first
+            if (opt) {
+                price = parseFloat(opt.getAttribute('data-price')) || 0;
+            }
+            
+            // If no data-price, find drug by ID
+            if (!price && select.value) {
+                const drug = this.drugs.find(d => d.id === select.value);
+                if (drug) {
+                    price = drug.price;
+                    // Update the option with data-price for future use
+                    opt.setAttribute('data-price', drug.price);
+                }
+            }
+            
+            priceInput.value = price.toFixed(2);
+            this.updateSaleLineTotalForRow(tr);
+        });
+
+        qty.addEventListener('input', () => this.updateSaleLineTotalForRow(tr));
+
+        removeBtn.addEventListener('click', () => {
+            tr.remove();
+            this.updateTotals();
+        });
+
+        // Trigger initial update if drug is pre-selected
+        if (initial.drugId) {
+            select.value = initial.drugId;
+            select.dispatchEvent(new Event('change'));
+        }
+    }
+
+    updateSaleLineTotalForRow(tr) {
+        const qty = Number(tr.querySelector('.sale-qty').value) || 0;
+        const unit = Number(tr.querySelector('.sale-unit-price').value) || 0;
+        const totalCell = tr.querySelector('.sale-line-total');
+        totalCell.textContent = (qty * unit).toFixed(2);
+        this.updateTotals();
+    }
+
+    updateTotals() {
+        const rows = Array.from(document.querySelectorAll('#saleItemsBody tr'));
+        let subtotal = 0;
+        rows.forEach(r => {
+            subtotal += Number(r.querySelector('.sale-line-total').textContent) || 0;
+        });
+        const el = document.getElementById('saleSubtotal');
+        if (el) el.textContent = subtotal.toFixed(2);
+    }
+
+    async processMultiSale() {
+        const rows = Array.from(document.querySelectorAll('#saleItemsBody tr'));
+        if (rows.length === 0) {
+            this.showMessage('Add at least one sale item', 'error');
+            return;
+        }
+
+        const customerName = document.getElementById('multiSaleCustomerName')?.value || 'Walk-in Customer';
+        const paymentMethod = document.getElementById('multiSalePaymentMethod')?.value || 'Cash';
+        
+        const items = [];
+        const errors = [];
+
+        // Validate all items first
+        for (const r of rows) {
+            const select = r.querySelector('.sale-drug-select');
+            const drugId = select.value;
+            const qty = Number(r.querySelector('.sale-qty').value) || 0;
+            const price = Number(r.querySelector('.sale-unit-price').value) || 0;
+
+            if (!drugId) {
+                errors.push('Please select a drug for all items');
+                continue;
+            }
+
+            if (qty <= 0) {
+                errors.push('Quantity must be greater than 0');
+                continue;
+            }
+
+            const drug = this.drugs.find(d => d.id === drugId);
+            if (!drug) {
+                errors.push('Drug not found');
+                continue;
+            }
+
+            if (drug.quantity < qty) {
+                errors.push(`Insufficient stock for ${drug.name}. Available: ${drug.quantity}`);
+                continue;
+            }
+
+            // Extract drug name from option text (remove stock info)
+            const optionText = select.options[select.selectedIndex]?.text || drug.name;
+            const drugName = optionText.split(' (Stock:')[0];
+
+            items.push({ drugId, drugName, qty, price, total: +(qty * price).toFixed(2), drug });
+        }
+
+        if (errors.length > 0) {
+            this.showMessage(errors[0], 'error');
+            return;
+        }
+
+        if (items.length === 0) {
+            this.showMessage('No valid items to process', 'error');
+            return;
+        }
+
+        // Process each sale item
+        const saleDate = new Date().toISOString().split('T')[0];
+        const saleTime = new Date().toTimeString().split(' ')[0];
+        const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+
+        // Create individual sale records for each item
+        items.forEach(item => {
+            const sale = {
+                id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
+                drugId: item.drugId,
+                drugName: item.drugName,
+                quantity: item.qty,
+                price: item.price,
+                total: item.total,
+                customerName: customerName,
+                paymentMethod: paymentMethod,
+                date: saleDate,
+                time: saleTime,
+                soldBy: this.currentUser.username
+            };
+
+            this.sales.push(sale);
+            item.drug.quantity -= item.qty;
+        });
+
+        // Save data
+        this.saveDataWithSync('sales', this.sales);
+        this.saveDataWithSync('drugs', this.drugs);
+
+        // Show receipt
+        this.showReceiptForItems(items, customerName, paymentMethod, saleDate, saleTime);
+
+        // Update UI
+        this.renderSales();
+        this.populateSalesDrugs();
+        this.updateDashboard();
+        this.showMessage('Sale processed successfully', 'success');
+        this.logAuditEvent('sale', `Sold ${items.length} items for $${totalAmount.toFixed(2)}`);
+
+        // Clear form
+        const body = document.getElementById('saleItemsBody');
+        if (body) body.innerHTML = '';
+        this.updateTotals();
+        if (document.getElementById('multiSaleCustomerName')) {
+            document.getElementById('multiSaleCustomerName').value = '';
+        }
+        if (document.getElementById('multiSalePaymentMethod')) {
+            document.getElementById('multiSalePaymentMethod').value = 'Cash';
+        }
+    }
+
+    showReceiptForItems(items, customerName = 'Walk-in Customer', paymentMethod = 'Cash', date = null, time = null) {
+        const container = document.getElementById('receiptContainer');
+        const content = document.getElementById('receiptContent');
+        if (container && content) {
+            container.style.display = 'block';
+            const saleDate = date || new Date().toISOString().split('T')[0];
+            const saleTime = time || new Date().toTimeString().split(' ')[0];
+            const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+            
+            const lines = items.map(i => `${i.drugName} x${i.qty} @ $${i.price.toFixed(2)} = $${i.total.toFixed(2)}`);
+            content.innerHTML = `
+                <div class="receipt">
+                    <h4>PharmaStore Receipt</h4>
+                    <p><strong>Date:</strong> ${this.formatDate(saleDate)}</p>
+                    <p><strong>Time:</strong> ${saleTime}</p>
+                    <p><strong>Sold by:</strong> ${this.currentUser.username}</p>
+                    <hr>
+                    ${lines.map(line => `<p>${line}</p>`).join('')}
+                    <hr>
+                    <p><strong>Customer:</strong> ${customerName}</p>
+                    <p><strong>Payment:</strong> ${paymentMethod}</p>
+                    <hr>
+                    <p><strong>Total Amount:</strong> $${totalAmount.toFixed(2)}</p>
+                    <hr>
+                    <p><em>Thank you for your business!</em></p>
+                </div>
+            `;
         }
     }
 }

@@ -506,6 +506,65 @@ tr:hover {
     margin-bottom: 2rem;
 }
 
+.sale-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.sale-items-table th {
+    background: #667eea;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.sale-items-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.sale-items-table input,
+.sale-items-table select {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid #e1e5e9;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.sale-items-table input:focus,
+.sale-items-table select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.sale-items-table .sale-unit-price {
+    background: #f8f9fa;
+    cursor: not-allowed;
+}
+
+.sale-items-table .sale-line-total {
+    font-weight: 600;
+    color: #667eea;
+}
+
+.sale-controls {
+    margin-top: 1.5rem;
+}
+
+.sale-totals {
+    text-align: right;
+    padding: 10px 0;
+}
+
+.sale-totals span {
+    color: #333;
+    font-weight: 600;
+}
+
 /* Receipt Styles */
 .receipt-container {
     background: white;
