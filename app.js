@@ -168,13 +168,21 @@ class PharmaStore {
         document.getElementById('currentUser').textContent = 
             `${this.currentUser.username} (${this.currentUser.type})`;
         
-        // Show/hide admin panel
-        const adminBtn = document.querySelector('.admin-only');
-        adminBtn.style.display = this.isAdmin ? 'flex' : 'none';
+        // Show/hide admin panel buttons
+        document.querySelectorAll('.admin-only').forEach(btn => {
+            btn.style.display = this.isAdmin ? 'flex' : 'none';
+        });
 
-        // Render admin-only user management visibility
+        // Render admin-only user management visibility - always show for admin
         const userMgmt = document.getElementById('userManagement');
-        if (userMgmt) userMgmt.style.display = this.isAdmin ? 'block' : 'none';
+        if (userMgmt) {
+            if (this.isAdmin) {
+                userMgmt.style.display = 'block';
+                userMgmt.style.visibility = 'visible';
+            } else {
+                userMgmt.style.display = 'none';
+            }
+        }
 
         this.renderUsersTable();
         this.logAuditEvent('login', `User ${this.currentUser.username} logged in`);
@@ -215,6 +223,18 @@ class PharmaStore {
             this.renderAnalytics();
         } else if (sectionId === 'audit') {
             this.renderAuditTrail();
+        } else if (sectionId === 'admin') {
+            // Ensure user management is visible when viewing admin panel
+            const userMgmt = document.getElementById('userManagement');
+            if (userMgmt) {
+                if (this.isAdmin) {
+                    userMgmt.style.display = 'block';
+                    userMgmt.style.visibility = 'visible';
+                } else {
+                    userMgmt.style.display = 'none';
+                }
+            }
+            this.renderUsersTable();
         }
     }
 
