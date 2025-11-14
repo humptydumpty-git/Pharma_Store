@@ -202,13 +202,6 @@ class PharmaStore {
             }
         }
 
-        // Stock adjustment section is visible to all users (audit trail tracks all changes)
-        const stockAdjSection = document.getElementById('stockAdjustmentSection');
-        if (stockAdjSection) {
-            stockAdjSection.style.display = 'block';
-            stockAdjSection.style.visibility = 'visible';
-        }
-
         this.renderUsersTable();
         this.logAuditEvent('login', `User ${this.currentUser.username} logged in`);
     }
@@ -246,6 +239,10 @@ class PharmaStore {
             this.updateReportDate();
         } else if (sectionId === 'analytics') {
             this.renderAnalytics();
+        } else if (sectionId === 'stockAdjustment') {
+            // Populate stock adjustment drug list
+            this.populateAdjustmentDrugs();
+            this.renderStockAdjustments();
         } else if (sectionId === 'audit') {
             this.renderAuditTrail();
         } else if (sectionId === 'admin') {
@@ -260,17 +257,7 @@ class PharmaStore {
                 }
             }
             
-            // Stock adjustment section is visible to all users (audit trail tracks all changes)
-            const stockAdjSection = document.getElementById('stockAdjustmentSection');
-            if (stockAdjSection) {
-                stockAdjSection.style.display = 'block';
-                stockAdjSection.style.visibility = 'visible';
-            }
-            
-            // Populate stock adjustment drug list
-            this.populateAdjustmentDrugs();
             this.renderUsersTable();
-            this.renderStockAdjustments();
         }
     }
 

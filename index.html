@@ -139,6 +139,9 @@
             <button class="nav-btn" data-section="analytics">
                 <i class="fas fa-chart-line"></i> Analytics
             </button>
+            <button class="nav-btn" data-section="stockAdjustment">
+                <i class="fas fa-adjust"></i> Stock Adjustment
+            </button>
             <button class="nav-btn admin-only" data-section="audit" style="display: none;">
                 <i class="fas fa-history"></i> Audit Trail
             </button>
@@ -619,12 +622,15 @@
                     </div>
                 </div>
 
-                <!-- Stock Adjustment Section -->
-                <div class="form-container" id="stockAdjustmentSection">
-                    <div class="section-header">
-                        <h2>Stock Adjustment</h2>
-                        <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Adjust inventory quantities for corrections, damaged items, or discrepancies. All adjustments are tracked in the audit trail.</p>
-                    </div>
+            </section>
+
+            <!-- Stock Adjustment Section -->
+            <section id="stockAdjustment" class="content-section">
+                <div class="section-header">
+                    <h2>Stock Adjustment</h2>
+                    <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Adjust inventory quantities for corrections, damaged items, or discrepancies. All adjustments are tracked in the audit trail.</p>
+                </div>
+                <div class="form-container">
                     <form id="stockAdjustmentForm" class="drug-form">
                         <div class="form-row">
                             <div class="form-group">
