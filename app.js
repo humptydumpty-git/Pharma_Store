@@ -191,6 +191,13 @@ class PharmaStore {
             btn.style.display = this.isAdmin ? 'flex' : 'none';
         });
 
+        // Ensure stock adjustment button is visible to all users
+        const stockAdjBtn = document.querySelector('[data-section="stockAdjustment"]');
+        if (stockAdjBtn) {
+            stockAdjBtn.style.display = 'flex';
+            stockAdjBtn.style.visibility = 'visible';
+        }
+
         // Render admin-only user management visibility - always show for admin
         const userMgmt = document.getElementById('userManagement');
         if (userMgmt) {
