@@ -142,6 +142,12 @@
             <button class="nav-btn" data-section="stockAdjustment">
                 <i class="fas fa-adjust"></i> Stock Adjustment
             </button>
+            <button class="nav-btn" data-section="pettyCash">
+                <i class="fas fa-wallet"></i> Petty Cash
+            </button>
+            <button class="nav-btn admin-only" data-section="payroll" style="display: none;">
+                <i class="fas fa-money-check-alt"></i> Payroll
+            </button>
             <button class="nav-btn admin-only" data-section="audit" style="display: none;">
                 <i class="fas fa-history"></i> Audit Trail
             </button>
@@ -713,6 +719,273 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Petty Cash Section -->
+            <section id="pettyCash" class="content-section">
+                <div class="section-header">
+                    <h2>Petty Cash Book</h2>
+                    <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Record expenses and miscellaneous transactions</p>
+                </div>
+                
+                <!-- Petty Cash Balance -->
+                <div class="form-container" style="margin-bottom: 2rem;">
+                    <div class="section-header">
+                        <h3>Current Balance</h3>
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div style="font-size: 2rem; font-weight: 600; color: #667eea;">
+                                $<span id="pettyCashBalanceDisplay">0.00</span>
+                            </div>
+                            <button type="button" class="btn-primary" id="updatePettyCashBalance">
+                                <i class="fas fa-edit"></i> Update Balance
+                            </button>
+                        </div>
+                    </div>
+                    <div id="updateBalanceForm" style="display: none; margin-top: 1rem;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="newBalance">New Balance *</label>
+                                <input type="number" id="newBalance" step="0.01" min="0" placeholder="Enter new balance">
+                            </div>
+                            <div class="form-group">
+                                <label for="balanceNotes">Notes</label>
+                                <input type="text" id="balanceNotes" placeholder="Reason for balance update">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-primary" onclick="pharmaStore.savePettyCashBalance()">Save</button>
+                            <button type="button" class="btn-secondary" onclick="pharmaStore.cancelBalanceUpdate()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expense Entry Form -->
+                <div class="form-container">
+                    <h3>Record Expense</h3>
+                    <form id="pettyCashForm" class="drug-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="expenseDate">Date *</label>
+                                <input type="date" id="expenseDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expenseCategory">Category *</label>
+                                <select id="expenseCategory" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Office Supplies">Office Supplies</option>
+                                    <option value="Utilities">Utilities</option>
+                                    <option value="Transportation">Transportation</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Food & Beverages">Food & Beverages</option>
+                                    <option value="Communication">Communication</option>
+                                    <option value="Miscellaneous">Miscellaneous</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="expenseDescription">Description *</label>
+                                <input type="text" id="expenseDescription" required placeholder="What was the expense for?">
+                            </div>
+                            <div class="form-group">
+                                <label for="expenseAmount">Amount *</label>
+                                <input type="number" id="expenseAmount" step="0.01" min="0" required placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="expensePaymentMethod">Payment Method *</label>
+                                <select id="expensePaymentMethod" required>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="Mobile Payment">Mobile Payment</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="expenseNotes">Notes</label>
+                                <input type="text" id="expenseNotes" placeholder="Additional details (optional)">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save"></i> Record Expense
+                            </button>
+                            <button type="reset" class="btn-secondary">
+                                <i class="fas fa-redo"></i> Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Expense History -->
+                <div class="form-container" style="margin-top: 2rem;">
+                    <h3>Expense History</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Notes</th>
+                                    <th>Recorded By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pettyCashTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Payroll Section (Admin Only) -->
+            <section id="payroll" class="content-section">
+                <div class="section-header">
+                    <h2>Payroll Management</h2>
+                    <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Manage employees and process salary payments</p>
+                </div>
+
+                <!-- Employee Management -->
+                <div class="form-container">
+                    <div class="section-header">
+                        <h3>Employee Management</h3>
+                        <button type="button" class="btn-primary" onclick="pharmaStore.toggleEmployeeForm()">
+                            <i class="fas fa-user-plus"></i> Add Employee
+                        </button>
+                    </div>
+                    
+                    <form id="employeeForm" class="drug-form" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="employeeName">Full Name *</label>
+                                <input type="text" id="employeeName" required placeholder="Employee full name">
+                            </div>
+                            <div class="form-group">
+                                <label for="employeePosition">Position *</label>
+                                <input type="text" id="employeePosition" required placeholder="e.g., Cashier, Pharmacist">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="employeeSalary">Monthly Salary *</label>
+                                <input type="number" id="employeeSalary" step="0.01" min="0" required placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="employeePhone">Phone Number</label>
+                                <input type="text" id="employeePhone" placeholder="Contact number">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="employeeEmail">Email</label>
+                                <input type="email" id="employeeEmail" placeholder="email@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="employeeStartDate">Start Date *</label>
+                                <input type="date" id="employeeStartDate" required>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save"></i> Save Employee
+                            </button>
+                            <button type="button" class="btn-secondary" onclick="pharmaStore.cancelEmployeeForm()">Cancel</button>
+                        </div>
+                    </form>
+
+                    <div class="table-container" style="margin-top: 1.5rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Position</th>
+                                    <th>Salary</th>
+                                    <th>Phone</th>
+                                    <th>Start Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeesTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Salary Payment -->
+                <div class="form-container" style="margin-top: 2rem;">
+                    <h3>Process Salary Payment</h3>
+                    <form id="salaryPaymentForm" class="drug-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="paymentEmployee">Employee *</label>
+                                <select id="paymentEmployee" required>
+                                    <option value="">Select Employee</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="paymentMonth">Payment Month *</label>
+                                <input type="month" id="paymentMonth" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="paymentAmount">Amount *</label>
+                                <input type="number" id="paymentAmount" step="0.01" min="0" required placeholder="0.00" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="paymentMethod">Payment Method *</label>
+                                <select id="paymentMethod" required>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Check">Check</option>
+                                    <option value="Mobile Payment">Mobile Payment</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="paymentNotes">Notes</label>
+                                <input type="text" id="paymentNotes" placeholder="Additional notes (optional)">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-money-check-alt"></i> Process Payment
+                            </button>
+                            <button type="reset" class="btn-secondary">
+                                <i class="fas fa-redo"></i> Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Payment History -->
+                <div class="form-container" style="margin-top: 2rem;">
+                    <h3>Payment History</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Employee</th>
+                                    <th>Position</th>
+                                    <th>Month</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Notes</th>
+                                    <th>Processed By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salaryPaymentsTableBody">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>

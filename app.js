@@ -6,6 +6,10 @@ class PharmaStore {
         this.drugs = this.loadData('drugs') || [];
         this.sales = this.loadData('sales') || [];
         this.stockAdjustments = this.loadData('stockAdjustments') || [];
+        this.pettyCash = this.loadData('pettyCash') || [];
+        this.pettyCashBalance = this.loadData('pettyCashBalance') || 0;
+        this.employees = this.loadData('employees') || [];
+        this.salaryPayments = this.loadData('salaryPayments') || [];
         const loadedUsers = this.loadData('users');
         if (Array.isArray(loadedUsers) && loadedUsers.length > 0) {
             // Ensure all users have createdAt field
@@ -35,6 +39,13 @@ class PharmaStore {
         this.cloudSyncEnabled = this.loadData('cloudSyncEnabled') || false;
         this.firebaseInitialized = false;
         
+        // Auto-logout timer
+        this.inactivityTimer = null;
+        this.inactivityWarningTimer = null;
+        this.lastActivityTime = Date.now();
+        this.inactivityTimeout = 60 * 1000; // 1 minute in milliseconds
+        this.warningTime = 50 * 1000; // Show warning at 50 seconds
+        
         this.init();
     }
 
@@ -45,6 +56,7 @@ class PharmaStore {
         this.initializeFirebase();
         this.setupOnlineOfflineListeners();
         this.updateSyncStatus();
+        this.setupInactivityTimer();
     }
 
     setupEventListeners() {
@@ -140,6 +152,52 @@ class PharmaStore {
         // Multi-item sales
         document.getElementById('addSaleItemBtn')?.addEventListener('click', () => this.addSaleItem());
         document.getElementById('processMultiSaleBtn')?.addEventListener('click', () => this.processMultiSale());
+
+        // Petty cash form
+        const pettyCashForm = document.getElementById('pettyCashForm');
+        if (pettyCashForm) {
+            pettyCashForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handlePettyCashEntry();
+            });
+        }
+
+        // Employee form
+        const employeeForm = document.getElementById('employeeForm');
+        if (employeeForm) {
+            employeeForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleAddEmployee();
+            });
+        }
+
+        // Salary payment form
+        const salaryPaymentForm = document.getElementById('salaryPaymentForm');
+        if (salaryPaymentForm) {
+            salaryPaymentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleSalaryPayment();
+            });
+        }
+
+        // Petty cash balance update
+        const updateBalanceBtn = document.getElementById('updatePettyCashBalance');
+        if (updateBalanceBtn) {
+            updateBalanceBtn.addEventListener('click', () => this.updatePettyCashBalance());
+        }
+
+        // Employee select change handler (set up once)
+        const paymentEmployeeSelect = document.getElementById('paymentEmployee');
+        if (paymentEmployeeSelect) {
+            paymentEmployeeSelect.addEventListener('change', (e) => {
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                const salary = parseFloat(selectedOption.getAttribute('data-salary')) || 0;
+                const amountInput = document.getElementById('paymentAmount');
+                if (amountInput) {
+                    amountInput.value = salary.toFixed(2);
+                }
+            });
+        }
     }
 
     // Authentication
@@ -166,6 +224,17 @@ class PharmaStore {
     }
 
     handleLogout() {
+        // Clear inactivity timers
+        if (this.inactivityTimer) {
+            clearTimeout(this.inactivityTimer);
+            this.inactivityTimer = null;
+        }
+        if (this.inactivityWarningTimer) {
+            clearTimeout(this.inactivityWarningTimer);
+            this.inactivityWarningTimer = null;
+        }
+        this.hideInactivityWarning();
+        
         if (this.currentUser) {
             this.logAuditEvent('logout', `User ${this.currentUser.username} logged out`);
         }
@@ -211,6 +280,9 @@ class PharmaStore {
 
         this.renderUsersTable();
         this.logAuditEvent('login', `User ${this.currentUser.username} logged in`);
+        
+        // Reset inactivity timer on login
+        this.resetInactivityTimer();
     }
 
     // Navigation
@@ -228,6 +300,9 @@ class PharmaStore {
         // Show selected section
         document.getElementById(sectionId).classList.add('active');
         document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+        
+        // Reset inactivity timer on navigation
+        this.resetInactivityTimer();
 
         // Update specific sections
         if (sectionId === 'dashboard') {
@@ -250,6 +325,20 @@ class PharmaStore {
             // Populate stock adjustment drug list
             this.populateAdjustmentDrugs();
             this.renderStockAdjustments();
+        } else if (sectionId === 'pettyCash') {
+            // Set default date to today
+            const expenseDate = document.getElementById('expenseDate');
+            if (expenseDate) {
+                expenseDate.value = new Date().toISOString().split('T')[0];
+            }
+            this.renderPettyCash();
+            this.updatePettyCashSummary();
+        } else if (sectionId === 'payroll') {
+            if (this.isAdmin) {
+                this.populateEmployeeSelect();
+                this.renderEmployees();
+                this.renderSalaryPayments();
+            }
         } else if (sectionId === 'audit') {
             this.renderAuditTrail();
         } else if (sectionId === 'admin') {
@@ -865,6 +954,10 @@ class PharmaStore {
             sales: this.sales,
             users: this.users,
             stockAdjustments: this.stockAdjustments,
+            pettyCash: this.pettyCash,
+            pettyCashBalance: this.pettyCashBalance,
+            employees: this.employees,
+            salaryPayments: this.salaryPayments,
             exportDate: new Date().toISOString()
         };
         
@@ -896,11 +989,19 @@ class PharmaStore {
                         this.sales = data.sales || [];
                         this.users = data.users || this.users; // Keep current users
                         this.stockAdjustments = data.stockAdjustments || [];
+                        this.pettyCash = data.pettyCash || [];
+                        this.pettyCashBalance = data.pettyCashBalance || 0;
+                        this.employees = data.employees || [];
+                        this.salaryPayments = data.salaryPayments || [];
                         
                         this.saveData('drugs', this.drugs);
                         this.saveData('sales', this.sales);
                         this.saveData('users', this.users);
                         this.saveData('stockAdjustments', this.stockAdjustments);
+                        this.saveData('pettyCash', this.pettyCash);
+                        this.saveData('pettyCashBalance', this.pettyCashBalance);
+                        this.saveData('employees', this.employees);
+                        this.saveData('salaryPayments', this.salaryPayments);
                         
                         this.renderDrugs();
                         this.renderSales();
@@ -924,6 +1025,10 @@ class PharmaStore {
                 this.drugs = [];
                 this.sales = [];
                 this.stockAdjustments = [];
+                this.pettyCash = [];
+                this.pettyCashBalance = 0;
+                this.employees = [];
+                this.salaryPayments = [];
                 this.users = [
                     { username: 'admin', password: 'password123', type: 'admin', createdAt: new Date().toISOString() },
                     { username: 'user', password: 'user123', type: 'user', createdAt: new Date().toISOString() }
@@ -932,6 +1037,10 @@ class PharmaStore {
                 this.saveData('drugs', this.drugs);
                 this.saveData('sales', this.sales);
                 this.saveData('stockAdjustments', this.stockAdjustments);
+                this.saveData('pettyCash', this.pettyCash);
+                this.saveData('pettyCashBalance', this.pettyCashBalance);
+                this.saveData('employees', this.employees);
+                this.saveData('salaryPayments', this.salaryPayments);
                 this.saveData('users', this.users);
                 
                 this.renderDrugs();
@@ -950,6 +1059,10 @@ class PharmaStore {
             sales: this.sales,
             users: this.users,
             stockAdjustments: this.stockAdjustments,
+            pettyCash: this.pettyCash,
+            pettyCashBalance: this.pettyCashBalance,
+            employees: this.employees,
+            salaryPayments: this.salaryPayments,
             backupDate: new Date().toISOString(),
             version: '1.0'
         };
@@ -1331,6 +1444,538 @@ class PharmaStore {
             `;
             tbody.appendChild(row);
         });
+    }
+
+    // Petty Cash Functions
+    handlePettyCashEntry() {
+        const date = document.getElementById('expenseDate').value;
+        const category = document.getElementById('expenseCategory').value;
+        const description = document.getElementById('expenseDescription').value.trim();
+        const amount = parseFloat(document.getElementById('expenseAmount').value);
+        const paymentMethod = document.getElementById('expensePaymentMethod').value;
+        const notes = document.getElementById('expenseNotes').value.trim();
+
+        if (!date || !category || !description || !amount || amount <= 0 || !paymentMethod) {
+            this.showMessage('Please fill in all required fields', 'error');
+            return;
+        }
+
+        if (amount > this.pettyCashBalance) {
+            if (!confirm(`Expense amount ($${amount.toFixed(2)}) exceeds current balance ($${this.pettyCashBalance.toFixed(2)}). Continue anyway?`)) {
+                return;
+            }
+        }
+
+        const entry = {
+            id: Date.now().toString(),
+            date: date,
+            category: category,
+            description: description,
+            amount: amount,
+            paymentMethod: paymentMethod,
+            notes: notes || '',
+            recordedBy: this.currentUser.username,
+            timestamp: new Date().toISOString()
+        };
+
+        this.pettyCash.push(entry);
+        this.pettyCashBalance -= amount;
+        if (this.pettyCashBalance < 0) this.pettyCashBalance = 0;
+
+        this.saveDataWithSync('pettyCash', this.pettyCash);
+        this.saveDataWithSync('pettyCashBalance', this.pettyCashBalance);
+
+        this.renderPettyCash();
+        this.updatePettyCashSummary();
+        document.getElementById('pettyCashForm').reset();
+        document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+
+        this.showMessage('Expense recorded successfully', 'success');
+        this.logAuditEvent('petty_cash_expense', `Recorded expense: ${description} - $${amount.toFixed(2)}`);
+    }
+
+    renderPettyCash() {
+        const tbody = document.getElementById('pettyCashTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        
+        const recentEntries = [...this.pettyCash].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        ).slice(0, 100);
+
+        if (recentEntries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">No expenses recorded</td></tr>';
+            return;
+        }
+
+        recentEntries.forEach(entry => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${this.formatDate(entry.date)}</td>
+                <td>${entry.category}</td>
+                <td>${entry.description}</td>
+                <td class="text-danger">-$${entry.amount.toFixed(2)}</td>
+                <td>${entry.paymentMethod}</td>
+                <td>${entry.notes || '-'}</td>
+                <td>${entry.recordedBy}</td>
+                <td>
+                    <button class="btn-delete" onclick="pharmaStore.deletePettyCashEntry('${entry.id}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    deletePettyCashEntry(id) {
+        const entry = this.pettyCash.find(e => e.id === id);
+        if (!entry) return;
+
+        if (confirm(`Delete expense: ${entry.description} - $${entry.amount.toFixed(2)}?`)) {
+            this.pettyCash = this.pettyCash.filter(e => e.id !== id);
+            this.pettyCashBalance += entry.amount; // Restore balance
+
+            this.saveDataWithSync('pettyCash', this.pettyCash);
+            this.saveDataWithSync('pettyCashBalance', this.pettyCashBalance);
+
+            this.renderPettyCash();
+            this.updatePettyCashSummary();
+            this.showMessage('Expense deleted and balance restored', 'success');
+            this.logAuditEvent('delete_petty_cash', `Deleted expense: ${entry.description}`);
+        }
+    }
+
+    updatePettyCashSummary() {
+        const balanceEl = document.getElementById('pettyCashBalanceDisplay');
+        if (balanceEl) {
+            balanceEl.textContent = this.pettyCashBalance.toFixed(2);
+        }
+    }
+
+    updatePettyCashBalance() {
+        const form = document.getElementById('updateBalanceForm');
+        if (form) {
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('newBalance').value = this.pettyCashBalance;
+            }
+        }
+    }
+
+    savePettyCashBalance() {
+        const newBalance = parseFloat(document.getElementById('newBalance').value);
+        const notes = document.getElementById('balanceNotes').value.trim();
+
+        if (isNaN(newBalance) || newBalance < 0) {
+            this.showMessage('Please enter a valid balance', 'error');
+            return;
+        }
+
+        const oldBalance = this.pettyCashBalance;
+        this.pettyCashBalance = newBalance;
+
+        // Record balance adjustment
+        const adjustment = {
+            id: Date.now().toString(),
+            date: new Date().toISOString().split('T')[0],
+            category: 'Balance Adjustment',
+            description: `Balance updated from $${oldBalance.toFixed(2)} to $${newBalance.toFixed(2)}`,
+            amount: newBalance - oldBalance,
+            paymentMethod: 'Adjustment',
+            notes: notes || 'Balance update',
+            recordedBy: this.currentUser.username,
+            timestamp: new Date().toISOString()
+        };
+
+        this.pettyCash.push(adjustment);
+        this.saveDataWithSync('pettyCash', this.pettyCash);
+        this.saveDataWithSync('pettyCashBalance', this.pettyCashBalance);
+
+        this.updatePettyCashBalance(); // Hide form
+        this.renderPettyCash();
+        this.updatePettyCashSummary();
+        this.showMessage('Balance updated successfully', 'success');
+        this.logAuditEvent('update_petty_cash_balance', `Updated balance from $${oldBalance.toFixed(2)} to $${newBalance.toFixed(2)}`);
+    }
+
+    cancelBalanceUpdate() {
+        const form = document.getElementById('updateBalanceForm');
+        if (form) {
+            form.style.display = 'none';
+            document.getElementById('newBalance').value = '';
+            document.getElementById('balanceNotes').value = '';
+        }
+    }
+
+    // Payroll Functions
+    handleAddEmployee() {
+        if (!this.isAdmin) {
+            this.showMessage('Only admin can manage employees', 'error');
+            return;
+        }
+
+        const name = document.getElementById('employeeName').value.trim();
+        const position = document.getElementById('employeePosition').value.trim();
+        const salary = parseFloat(document.getElementById('employeeSalary').value);
+        const phone = document.getElementById('employeePhone').value.trim();
+        const email = document.getElementById('employeeEmail').value.trim();
+        const startDate = document.getElementById('employeeStartDate').value;
+        const isEdit = document.getElementById('employeeForm').dataset.editId;
+
+        if (!name || !position || !salary || salary <= 0 || !startDate) {
+            this.showMessage('Please fill in all required fields', 'error');
+            return;
+        }
+
+        if (isEdit) {
+            const index = this.employees.findIndex(e => e.id === isEdit);
+            if (index !== -1) {
+                this.employees[index] = {
+                    ...this.employees[index],
+                    name,
+                    position,
+                    salary,
+                    phone,
+                    email,
+                    startDate,
+                    updatedAt: new Date().toISOString()
+                };
+                this.saveDataWithSync('employees', this.employees);
+                this.cancelEmployeeForm();
+                this.renderEmployees();
+                this.populateEmployeeSelect();
+                this.showMessage('Employee updated successfully', 'success');
+                this.logAuditEvent('edit_employee', `Updated employee: ${name}`);
+            }
+        } else {
+            const employee = {
+                id: Date.now().toString(),
+                name,
+                position,
+                salary,
+                phone,
+                email,
+                startDate,
+                createdAt: new Date().toISOString()
+            };
+
+            this.employees.push(employee);
+            this.saveDataWithSync('employees', this.employees);
+            document.getElementById('employeeForm').reset();
+            this.renderEmployees();
+            this.populateEmployeeSelect();
+            this.showMessage('Employee added successfully', 'success');
+            this.logAuditEvent('add_employee', `Added employee: ${name} (${position})`);
+        }
+    }
+
+    renderEmployees() {
+        const tbody = document.getElementById('employeesTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        
+        if (this.employees.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No employees added</td></tr>';
+            return;
+        }
+
+        this.employees.forEach(emp => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${emp.name}</td>
+                <td>${emp.position}</td>
+                <td>$${emp.salary.toFixed(2)}</td>
+                <td>${emp.phone || '-'}</td>
+                <td>${this.formatDate(emp.startDate)}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-edit" onclick="pharmaStore.editEmployee('${emp.id}')" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-delete" onclick="pharmaStore.deleteEmployee('${emp.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    editEmployee(id) {
+        const employee = this.employees.find(e => e.id === id);
+        if (!employee) return;
+
+        document.getElementById('employeeName').value = employee.name;
+        document.getElementById('employeePosition').value = employee.position;
+        document.getElementById('employeeSalary').value = employee.salary;
+        document.getElementById('employeePhone').value = employee.phone || '';
+        document.getElementById('employeeEmail').value = employee.email || '';
+        document.getElementById('employeeStartDate').value = employee.startDate;
+        document.getElementById('employeeForm').dataset.editId = id;
+        document.getElementById('employeeForm').style.display = 'block';
+    }
+
+    deleteEmployee(id) {
+        if (!this.isAdmin) {
+            this.showMessage('Only admin can delete employees', 'error');
+            return;
+        }
+
+        const employee = this.employees.find(e => e.id === id);
+        if (!employee) return;
+
+        if (confirm(`Delete employee "${employee.name}"? This will also remove all payment history for this employee.`)) {
+            this.employees = this.employees.filter(e => e.id !== id);
+            this.salaryPayments = this.salaryPayments.filter(p => p.employeeId !== id);
+            this.saveDataWithSync('employees', this.employees);
+            this.saveDataWithSync('salaryPayments', this.salaryPayments);
+            this.renderEmployees();
+            this.populateEmployeeSelect();
+            this.renderSalaryPayments();
+            this.showMessage('Employee deleted successfully', 'success');
+            this.logAuditEvent('delete_employee', `Deleted employee: ${employee.name}`);
+        }
+    }
+
+    toggleEmployeeForm() {
+        const form = document.getElementById('employeeForm');
+        if (form) {
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                form.reset();
+                form.dataset.editId = '';
+            }
+        }
+    }
+
+    cancelEmployeeForm() {
+        const form = document.getElementById('employeeForm');
+        if (form) {
+            form.style.display = 'none';
+            form.reset();
+            form.dataset.editId = '';
+        }
+    }
+
+    populateEmployeeSelect() {
+        const select = document.getElementById('paymentEmployee');
+        if (!select) return;
+
+        // Save current value
+        const currentValue = select.value;
+
+        // Clear and repopulate
+        select.innerHTML = '<option value="">Select Employee</option>';
+        this.employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = `${emp.name} (${emp.position}) - $${emp.salary.toFixed(2)}/month`;
+            option.setAttribute('data-salary', emp.salary);
+            select.appendChild(option);
+        });
+
+        // Restore selection if it was valid
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    }
+
+    handleSalaryPayment() {
+        if (!this.isAdmin) {
+            this.showMessage('Only admin can process salary payments', 'error');
+            return;
+        }
+
+        const employeeId = document.getElementById('paymentEmployee').value;
+        const month = document.getElementById('paymentMonth').value;
+        const amount = parseFloat(document.getElementById('paymentAmount').value);
+        const paymentMethod = document.getElementById('paymentMethod').value;
+        const notes = document.getElementById('paymentNotes').value.trim();
+
+        if (!employeeId || !month || !amount || amount <= 0 || !paymentMethod) {
+            this.showMessage('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const employee = this.employees.find(e => e.id === employeeId);
+        if (!employee) {
+            this.showMessage('Employee not found', 'error');
+            return;
+        }
+
+        // Check if payment already exists for this employee and month
+        const existingPayment = this.salaryPayments.find(p => 
+            p.employeeId === employeeId && p.month === month
+        );
+
+        if (existingPayment) {
+            if (!confirm(`Payment for ${employee.name} for ${month} already exists. Create duplicate payment?`)) {
+                return;
+            }
+        }
+
+        const payment = {
+            id: Date.now().toString(),
+            employeeId: employeeId,
+            employeeName: employee.name,
+            employeePosition: employee.position,
+            month: month,
+            amount: amount,
+            paymentMethod: paymentMethod,
+            notes: notes || '',
+            processedBy: this.currentUser.username,
+            date: new Date().toISOString().split('T')[0],
+            timestamp: new Date().toISOString()
+        };
+
+        this.salaryPayments.push(payment);
+        this.saveDataWithSync('salaryPayments', this.salaryPayments);
+
+        this.renderSalaryPayments();
+        document.getElementById('salaryPaymentForm').reset();
+        this.populateEmployeeSelect();
+
+        this.showMessage(`Salary payment processed for ${employee.name}`, 'success');
+        this.logAuditEvent('salary_payment', `Processed salary payment: ${employee.name} - $${amount.toFixed(2)} for ${month}`);
+    }
+
+    renderSalaryPayments() {
+        const tbody = document.getElementById('salaryPaymentsTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        
+        const recentPayments = [...this.salaryPayments].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        ).slice(0, 100);
+
+        if (recentPayments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">No salary payments recorded</td></tr>';
+            return;
+        }
+
+        recentPayments.forEach(payment => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${this.formatDate(payment.date)}</td>
+                <td>${payment.employeeName}</td>
+                <td>${payment.employeePosition}</td>
+                <td>${payment.month}</td>
+                <td>$${payment.amount.toFixed(2)}</td>
+                <td>${payment.paymentMethod}</td>
+                <td>${payment.notes || '-'}</td>
+                <td>${payment.processedBy}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    // Auto-Logout Functionality
+    setupInactivityTimer() {
+        // Track user activity
+        const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+        
+        activityEvents.forEach(event => {
+            document.addEventListener(event, () => {
+                this.resetInactivityTimer();
+            }, true);
+        });
+
+        // Start the timer
+        this.resetInactivityTimer();
+    }
+
+    resetInactivityTimer() {
+        // Clear existing timers
+        if (this.inactivityTimer) {
+            clearTimeout(this.inactivityTimer);
+        }
+        if (this.inactivityWarningTimer) {
+            clearTimeout(this.inactivityWarningTimer);
+        }
+
+        // Hide warning if visible
+        this.hideInactivityWarning();
+
+        // Only set timer if user is logged in
+        if (!this.currentUser) return;
+
+        this.lastActivityTime = Date.now();
+
+        // Show warning at 50 seconds
+        this.inactivityWarningTimer = setTimeout(() => {
+            this.showInactivityWarning();
+        }, this.warningTime);
+
+        // Logout at 60 seconds
+        this.inactivityTimer = setTimeout(() => {
+            this.handleAutoLogout();
+        }, this.inactivityTimeout);
+    }
+
+    showInactivityWarning() {
+        // Create or show warning modal
+        let warningModal = document.getElementById('inactivityWarningModal');
+        if (!warningModal) {
+            warningModal = document.createElement('div');
+            warningModal.id = 'inactivityWarningModal';
+            warningModal.className = 'modal';
+            warningModal.innerHTML = `
+                <div class="modal-content" style="max-width: 400px;">
+                    <h3 style="color: #dc3545;">
+                        <i class="fas fa-exclamation-triangle"></i> Session Timeout Warning
+                    </h3>
+                    <p>You will be logged out in <strong id="countdownTimer">10</strong> seconds due to inactivity.</p>
+                    <p style="font-size: 0.9rem; color: #666;">Click anywhere to continue your session.</p>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-primary" onclick="pharmaStore.resetInactivityTimer()">
+                            <i class="fas fa-check"></i> Continue Session
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(warningModal);
+            
+            // Click anywhere on modal to continue session
+            warningModal.addEventListener('click', (e) => {
+                if (e.target === warningModal || e.target.closest('.modal-content')) {
+                    this.resetInactivityTimer();
+                }
+            });
+        }
+        warningModal.style.display = 'flex';
+
+        // Start countdown
+        let seconds = 10;
+        const countdownEl = document.getElementById('countdownTimer');
+        const countdownInterval = setInterval(() => {
+            seconds--;
+            if (countdownEl) {
+                countdownEl.textContent = seconds;
+            }
+            if (seconds <= 0) {
+                clearInterval(countdownInterval);
+            }
+        }, 1000);
+    }
+
+    hideInactivityWarning() {
+        const warningModal = document.getElementById('inactivityWarningModal');
+        if (warningModal) {
+            warningModal.style.display = 'none';
+        }
+    }
+
+    handleAutoLogout() {
+        if (this.currentUser) {
+            this.logAuditEvent('auto_logout', `User ${this.currentUser.username} logged out due to inactivity`);
+        }
+        this.showMessage('You have been logged out due to inactivity', 'info');
+        this.handleLogout();
     }
 
     // Utility Functions
@@ -1871,6 +2516,17 @@ class PharmaStore {
             const adjustmentsRef = window.Firebase.doc(db, 'pharmastore', 'stockAdjustments');
             batch.set(adjustmentsRef, { data: this.stockAdjustments, lastUpdated: new Date() });
 
+            // Sync petty cash
+            const pettyCashRef = window.Firebase.doc(db, 'pharmastore', 'pettyCash');
+            batch.set(pettyCashRef, { data: this.pettyCash, balance: this.pettyCashBalance, lastUpdated: new Date() });
+
+            // Sync employees and salary payments
+            const employeesRef = window.Firebase.doc(db, 'pharmastore', 'employees');
+            batch.set(employeesRef, { data: this.employees, lastUpdated: new Date() });
+
+            const salaryPaymentsRef = window.Firebase.doc(db, 'pharmastore', 'salaryPayments');
+            batch.set(salaryPaymentsRef, { data: this.salaryPayments, lastUpdated: new Date() });
+
             await batch.commit();
             
             // Update last sync time
@@ -1973,10 +2629,57 @@ class PharmaStore {
                 }
             }
 
+            const pettyCashSnapshot = await window.Firebase.getDoc(window.Firebase.doc(db, 'pharmastore', 'pettyCash'));
+            if (pettyCashSnapshot.exists()) {
+                const cloudPettyCash = pettyCashSnapshot.data().data;
+                const cloudBalance = pettyCashSnapshot.data().balance || 0;
+                const cloudTime = pettyCashSnapshot.data().lastUpdated.toDate();
+                const localTime = new Date(this.loadData('lastSyncTime') || 0);
+                
+                if (cloudTime > localTime) {
+                    this.pettyCash = cloudPettyCash;
+                    this.pettyCashBalance = cloudBalance;
+                    this.saveData('pettyCash', this.pettyCash);
+                    this.saveData('pettyCashBalance', this.pettyCashBalance);
+                    hasChanges = true;
+                }
+            }
+
+            const employeesSnapshot = await window.Firebase.getDoc(window.Firebase.doc(db, 'pharmastore', 'employees'));
+            if (employeesSnapshot.exists()) {
+                const cloudEmployees = employeesSnapshot.data().data;
+                const cloudTime = employeesSnapshot.data().lastUpdated.toDate();
+                const localTime = new Date(this.loadData('lastSyncTime') || 0);
+                
+                if (cloudTime > localTime) {
+                    this.employees = cloudEmployees;
+                    this.saveData('employees', this.employees);
+                    hasChanges = true;
+                }
+            }
+
+            const salaryPaymentsSnapshot = await window.Firebase.getDoc(window.Firebase.doc(db, 'pharmastore', 'salaryPayments'));
+            if (salaryPaymentsSnapshot.exists()) {
+                const cloudPayments = salaryPaymentsSnapshot.data().data;
+                const cloudTime = salaryPaymentsSnapshot.data().lastUpdated.toDate();
+                const localTime = new Date(this.loadData('lastSyncTime') || 0);
+                
+                if (cloudTime > localTime) {
+                    this.salaryPayments = cloudPayments;
+                    this.saveData('salaryPayments', this.salaryPayments);
+                    hasChanges = true;
+                }
+            }
+
             if (hasChanges) {
                 this.renderDrugs();
                 this.renderSales();
                 this.renderUsersTable();
+                this.renderPettyCash();
+                this.updatePettyCashSummary();
+                this.renderEmployees();
+                this.renderSalaryPayments();
+                this.populateEmployeeSelect();
                 this.updateDashboard();
                 this.showMessage('Data synced from cloud successfully', 'success');
                 this.logAuditEvent('sync_from_cloud', 'Data synchronized from cloud storage');
@@ -2393,4 +3096,20 @@ function clearAuditFilters() {
 
 function cancelEditUser() {
     pharmaStore.cancelEditUser();
+}
+
+function toggleEmployeeForm() {
+    pharmaStore.toggleEmployeeForm();
+}
+
+function cancelEmployeeForm() {
+    pharmaStore.cancelEmployeeForm();
+}
+
+function savePettyCashBalance() {
+    pharmaStore.savePettyCashBalance();
+}
+
+function cancelBalanceUpdate() {
+    pharmaStore.cancelBalanceUpdate();
 }
