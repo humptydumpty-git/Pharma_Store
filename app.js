@@ -817,7 +817,7 @@ class PharmaStore {
     constructor() {
         // ...existing code...
 
-        // Ensure users exist (create defaults if none)
+        // --- Ensure user list exists (create safe defaults if missing) ---
         try {
             const stored = localStorage.getItem('users');
             this.users = stored ? JSON.parse(stored) : (Array.isArray(this.users) ? this.users : []);
@@ -826,17 +826,34 @@ class PharmaStore {
         }
 
         if (!Array.isArray(this.users) || this.users.length === 0) {
-            const defaults = [
+            this.users = [
                 { username: 'admin', password: 'admin123', type: 'admin', created: new Date().toISOString() },
                 { username: 'test',  password: 'password',  type: 'user',  created: new Date().toISOString() }
             ];
-            this.users = defaults;
-            try { localStorage.setItem('users', JSON.stringify(this.users)); } catch(e){ console.warn('Could not save default users', e); }
+            try { localStorage.setItem('users', JSON.stringify(this.users)); } catch (e) { console.warn('Could not save default users', e); }
+        }
+
+        // --- Provide a safe fallback for showMainApp if missing ---
+        if (typeof this.showMainApp !== 'function') {
+            this.showMainApp = () => {
+                const loginScreen = document.getElementById('loginScreen');
+                const mainApp = document.getElementById('mainApp');
+                if (loginScreen) loginScreen.style.display = 'none';
+                if (mainApp) mainApp.style.display = 'block';
+                const userEl = document.getElementById('currentUser');
+                if (userEl && this.currentUser) userEl.textContent = `${this.currentUser.username} (${this.currentUser.type || 'user'})`;
+
+                // Show/hide admin-only UI
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = this.isAdmin ? '' : 'none';
+                });
+            };
         }
 
         // ...existing code...
     }
-// ...existing code...
+
+    // ...existing code...
 }
 
 // Initialize the application
