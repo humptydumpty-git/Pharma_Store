@@ -813,6 +813,29 @@ class PharmaStore {
 
         return createdSales;
     }
+
+    constructor() {
+        // ...existing code...
+
+        // Ensure users exist (create defaults if none)
+        try {
+            const stored = localStorage.getItem('users');
+            this.users = stored ? JSON.parse(stored) : (Array.isArray(this.users) ? this.users : []);
+        } catch (e) {
+            this.users = Array.isArray(this.users) ? this.users : [];
+        }
+
+        if (!Array.isArray(this.users) || this.users.length === 0) {
+            const defaults = [
+                { username: 'admin', password: 'admin123', type: 'admin', created: new Date().toISOString() },
+                { username: 'test',  password: 'password',  type: 'user',  created: new Date().toISOString() }
+            ];
+            this.users = defaults;
+            try { localStorage.setItem('users', JSON.stringify(this.users)); } catch(e){ console.warn('Could not save default users', e); }
+        }
+
+        // ...existing code...
+    }
 // ...existing code...
 }
 
