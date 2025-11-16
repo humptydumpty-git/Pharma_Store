@@ -281,7 +281,7 @@ class PharmaStore {
 
             if (!usernameInput || !passwordInput || !userTypeSelect || !loginMessage) {
                 console.error('Required login elements not found');
-                return;
+                return false;
             }
 
             const username = usernameInput.value.trim();
@@ -293,11 +293,11 @@ class PharmaStore {
                 loginMessage.textContent = 'Please enter both username and password';
                 loginMessage.style.color = 'red';
                 loginMessage.style.display = 'block';
-                return;
+                return false;
             }
 
             // Find user in the users array
-            const user = this.users.find(u => {
+            const user = this.users.find(function(u) {
                 return u.username === username && 
                        u.password === password && 
                        (userType ? u.type === userType : true);
@@ -308,24 +308,27 @@ class PharmaStore {
                 this.isAdmin = user.type === 'admin';
                 
                 // Log the login event
-                this.logAuditEvent?.('login', `User ${username} logged in`);
+                if (this.logAuditEvent) {
+                    this.logAuditEvent('login', 'User ' + username + ' logged in');
+                }
                 
                 // Show the main app
-                this.showMainApp?.();
+                if (this.showMainApp) this.showMainApp();
                 
                 // Initialize app data
-                this.updateDashboard?.();
-                this.populateSalesDrugs?.();
-                this.renderDrugs?.();
-                this.renderSales?.();
+                if (this.updateDashboard) this.updateDashboard();
+                if (this.populateSalesDrugs) this.populateSalesDrugs();
+                if (this.renderDrugs) this.renderDrugs();
+                if (this.renderSales) this.renderSales();
                 
                 // Show welcome message
-                loginMessage.textContent = `Welcome, ${username}!`;
+                loginMessage.textContent = 'Welcome, ' + username + '!';
                 loginMessage.style.color = 'green';
                 loginMessage.style.display = 'block';
                 
                 // Hide message after 3 seconds
-                setTimeout(() => {
+                var self = this;
+                setTimeout(function() {
                     loginMessage.style.display = 'none';
                 }, 3000);
                 
@@ -337,7 +340,9 @@ class PharmaStore {
                 loginMessage.style.display = 'block';
                 
                 // Log failed login attempt
-                this.logAuditEvent?.('login_failed', `Failed login attempt for username: ${username}`);
+                if (this.logAuditEvent) {
+                    this.logAuditEvent('login_failed', 'Failed login attempt for username: ' + username);
+                }
                 return false;
             }
         } catch (error) {
