@@ -925,9 +925,35 @@ class PharmaStore {
 // Initialize the application
 let pharmaStore;
 
-document.addEventListener('DOMContentLoaded', () => {
-    pharmaStore = new PharmaStore();
-});
+function initializeApp() {
+    try {
+        console.log('Initializing PharmaStore application...');
+        pharmaStore = new PharmaStore();
+        
+        // Make pharmaStore globally available for debugging
+        window.pharmaStore = pharmaStore;
+        
+        console.log('PharmaStore initialized successfully');
+    } catch (error) {
+        console.error('Failed to initialize PharmaStore:', error);
+        
+        // Show error message to user
+        const loginMessage = document.getElementById('loginMessage');
+        if (loginMessage) {
+            loginMessage.textContent = 'Failed to initialize the application. Please check the console for details.';
+            loginMessage.style.color = 'red';
+            loginMessage.style.display = 'block';
+        }
+    }
+}
+
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+// Also try to initialize if DOM is already loaded
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(initializeApp, 1);
+}
 
 // Global functions for HTML onclick handlers
 function showSection(sectionId) {

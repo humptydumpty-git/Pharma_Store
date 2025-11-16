@@ -1046,54 +1046,67 @@
         </div>
     </div>
 
-    <!-- Service Worker Registration (guarded for file://) -->
+    <!-- Application Initialization -->
     <script>
-        // Debug: catch runtime errors as alerts and console
-        window.addEventListener('error', (ev) => {
-            const msg = ev.error?.message || ev.message || 'Unknown error';
-            console.error('Captured error:', ev.error || ev);
-            try { alert('JS error: ' + msg); } catch(e){}
-        });
-        window.addEventListener('unhandledrejection', (ev) => {
-            const reason = ev.reason?.message || ev.reason || 'Unhandled rejection';
-            console.error('Unhandled rejection:', ev.reason || ev);
-            try { alert('Promise rejection: ' + reason); } catch(e){}
+        // Enhanced error handling
+        window.addEventListener('error', function(event) {
+            console.error('Global error:', event.error || event.message, event);
+            try {
+                const loginMessage = document.getElementById('loginMessage');
+                if (loginMessage) {
+                    loginMessage.textContent = 'An error occurred. Please check the console for details.';
+                    loginMessage.style.color = 'red';
+                    loginMessage.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Error in error handler:', e);
+            }
         });
 
-        // Only register service worker or use manifest when served over http(s) or localhost.
-        const canUseServiceWorker = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
-        if (canUseServiceWorker && 'serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then((registration) => console.log('SW registered: ', registration))
-                    .catch((registrationError) => console.warn('SW registration failed: ', registrationError));
+        // Only initialize PWA features if running in a secure context
+        if (window.isSecureContext) {
+            // Service Worker Registration (only for http/https)
+            if ('serviceWorker' in navigator && (location.protocol === 'https:' || 
+                location.hostname === 'localhost' || 
+                location.hostname === '127.0.0.1')) {
+                
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('sw.js')
+                        .then(reg => console.log('ServiceWorker registration successful'))
+                        .catch(err => console.error('ServiceWorker registration failed: ', err));
+                });
+            }
+
+            // PWA Install Prompt
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                const installPrompt = document.getElementById('installPrompt');
+                if (installPrompt) installPrompt.style.display = 'block';
             });
-        } else {
-            console.log('Service worker registration skipped (not served over http(s)).');
+
+            const installBtn = document.getElementById('installBtn');
+            if (installBtn) {
+                installBtn.addEventListener('click', async () => {
+                    if (!deferredPrompt) return;
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                    const installPrompt = document.getElementById('installPrompt');
+                    if (installPrompt) installPrompt.style.display = 'none';
+                });
+            }
+
+            const dismissInstall = document.getElementById('dismissInstall');
+            if (dismissInstall) {
+                dismissInstall.addEventListener('click', () => {
+                    const installPrompt = document.getElementById('installPrompt');
+                    if (installPrompt) installPrompt.style.display = 'none';
+                });
+            }
         }
-
-        // PWA install prompt wiring must also be safe when not served via HTTP
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            if (!canUseServiceWorker) return;
-            e.preventDefault();
-            deferredPrompt = e;
-            const installPrompt = document.getElementById('installPrompt');
-            if (installPrompt) installPrompt.style.display = 'block';
-        });
-
-        document.getElementById('installBtn')?.addEventListener('click', async () => {
-            if (!canUseServiceWorker || !deferredPrompt) return;
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            deferredPrompt = null;
-            document.getElementById('installPrompt').style.display = 'none';
-        });
-
-        document.getElementById('dismissInstall')?.addEventListener('click', () => {
-            document.getElementById('installPrompt').style.display = 'none';
-        });
     </script>
 
     <script src="app.js"></script>
