@@ -29,6 +29,10 @@ class PharmaStore {
         this.isOnline = navigator.onLine;
         this.cloudSyncEnabled = false; // Disable cloud sync
         
+        // Theme management
+        this.currentTheme = this.loadData('theme') || 'light';
+        this.applyTheme(this.currentTheme);
+        
         // Auto-logout timer
         this.inactivityTimer = null;
         this.inactivityWarningTimer = null;
@@ -307,6 +311,12 @@ class PharmaStore {
         const updateBalanceBtn = document.getElementById('updatePettyCashBalance');
         if (updateBalanceBtn) {
             updateBalanceBtn.addEventListener('click', () => this.toggleBalanceUpdateForm());
+        }
+
+        // Theme switcher
+        const themeSwitcher = document.getElementById('themeSwitcher');
+        if (themeSwitcher) {
+            themeSwitcher.addEventListener('click', () => this.toggleTheme());
         }
 
         // Employee select change handler
@@ -1168,6 +1178,19 @@ class PharmaStore {
         this.showMessage('Language changed to ' + lang, 'success');
     }
 
+    // Theme management
+    applyTheme(theme) {
+        this.currentTheme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        this.saveData('theme', theme);
+    }
+
+    toggleTheme() {
+        const newTheme = this.currentTheme === 'light' ? 'dark' : 'light';
+        this.applyTheme(newTheme);
+        this.showMessage(`Switched to ${newTheme} theme`, 'success');
+    }
+
     renderAuditTrail() {
         const tbody = document.getElementById('auditTableBody');
         if (!tbody) return;
@@ -1712,4 +1735,8 @@ function savePettyCashBalance() {
 
 function cancelBalanceUpdate() {
     if (pharmaStore) pharmaStore.cancelBalanceUpdate();
+}
+
+function toggleTheme() {
+    if (pharmaStore) pharmaStore.toggleTheme();
 }
