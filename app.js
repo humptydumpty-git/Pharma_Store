@@ -273,69 +273,84 @@ class PharmaStore {
 
     // Authentication
     handleLogin() {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const userType = document.getElementById('userType').value;
-        const loginMessage = document.getElementById('loginMessage');
+        try {
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const userTypeSelect = document.getElementById('userType');
+            const loginMessage = document.getElementById('loginMessage');
 
-        // Basic validation
-        if (!username || !password) {
-            if (loginMessage) {
+            if (!usernameInput || !passwordInput || !userTypeSelect || !loginMessage) {
+                console.error('Required login elements not found');
+                return;
+            }
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            const userType = userTypeSelect.value;
+
+            // Basic validation
+            if (!username || !password) {
                 loginMessage.textContent = 'Please enter both username and password';
+                loginMessage.style.color = 'red';
                 loginMessage.style.display = 'block';
+                return;
             }
-            return;
-        }
 
-        // Find user in the users array
-        const user = this.users.find(function(u) {
-            return u.username === username && 
-                   u.password === password && 
-                   (userType ? u.type === userType : true);
-        });
+            // Find user in the users array
+            const user = this.users.find(function(u) {
+                return u.username === username && 
+                       u.password === password && 
+                       (userType ? u.type === userType : true);
+            });
 
-        if (user) {
-            this.currentUser = user;
-            this.isAdmin = user.type === 'admin';
-            
-            // Log the login event
-            if (this.logAuditEvent) {
-                this.logAuditEvent('login', 'User ' + username + ' logged in');
-            }
-            
-            // Show the main app
-            this.showMainApp();
-            
-            // Initialize app data
-            if (this.updateDashboard) this.updateDashboard();
-            if (this.populateSalesDrugs) this.populateSalesDrugs();
-            if (this.renderDrugs) this.renderDrugs();
-            if (this.renderSales) this.renderSales();
-            
-            // Show welcome message
-            if (loginMessage) {
+            if (user) {
+                this.currentUser = user;
+                this.isAdmin = user.type === 'admin';
+                
+                // Log the login event
+                if (typeof this.logAuditEvent === 'function') {
+                    this.logAuditEvent('login', 'User ' + username + ' logged in');
+                }
+                
+                // Show the main app
+                if (typeof this.showMainApp === 'function') {
+                    this.showMainApp();
+                }
+                
+                // Initialize app data
+                if (typeof this.updateDashboard === 'function') this.updateDashboard();
+                if (typeof this.populateSalesDrugs === 'function') this.populateSalesDrugs();
+                if (typeof this.renderDrugs === 'function') this.renderDrugs();
+                if (typeof this.renderSales === 'function') this.renderSales();
+                
+                // Show welcome message
                 loginMessage.textContent = 'Welcome, ' + username + '!';
                 loginMessage.style.color = 'green';
                 loginMessage.style.display = 'block';
                 
                 // Hide message after 3 seconds
-                var self = this;
-                setTimeout(function() {
+                setTimeout(() => {
                     loginMessage.style.display = 'none';
                 }, 3000);
-            }
-            
-        } else {
-            // Invalid credentials
-            if (loginMessage) {
+                
+            } else {
+                // Invalid credentials
                 loginMessage.textContent = 'Invalid username or password';
                 loginMessage.style.color = 'red';
                 loginMessage.style.display = 'block';
+                
+                // Log failed login attempt
+                if (typeof this.logAuditEvent === 'function') {
+                    this.logAuditEvent('login_failed', 'Failed login attempt for username: ' + username);
+                }
             }
-            
-            // Log failed login attempt
-            if (this.logAuditEvent) {
-                this.logAuditEvent('login_failed', 'Failed login attempt for username: ' + username);
+        } catch (error) {
+            console.error('Login error:', error);
+            const loginMessage = document.getElementById('loginMessage');
+            if (loginMessage) {
+                loginMessage.textContent = 'An error occurred during login. Please try again.';
+                loginMessage.style.color = 'red';
+                loginMessage.style.display = 'block';
             }
         }
     }
