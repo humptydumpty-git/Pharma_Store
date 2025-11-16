@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PharmaStore Management System</title>
-    <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- PWA Manifest -->
@@ -100,7 +100,7 @@
     </div>
 
     <!-- Main Application -->
-    <div id="mainApp" class="main-app" style="display: none;">
+    <div id="mainApp" class="main-app">
         <!-- Header -->
         <header class="app-header">
             <div class="header-left">
@@ -645,7 +645,7 @@
             <section id="stockAdjustment" class="content-section">
                 <div class="section-header">
                     <h2>Stock Adjustment</h2>
-                    <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Adjust inventory quantities for corrections, damaged items, or discrepancies. All adjustments are tracked in the audit trail.</p>
+                    <p class="section-description">Adjust inventory quantities for corrections, damaged items, or discrepancies. All adjustments are tracked in the audit trail.</p>
                 </div>
                 <div class="form-container">
                     <form id="stockAdjustmentForm" class="drug-form">
@@ -710,7 +710,7 @@
                     </form>
 
                     <!-- Stock Adjustment History -->
-                    <div style="margin-top: 2rem;">
+                    <div class="adjustment-history">
                         <h3 style="margin-bottom: 1rem;">Adjustment History</h3>
                         <div class="table-container">
                             <table>
@@ -738,7 +738,7 @@
             <section id="pettyCash" class="content-section">
                 <div class="section-header">
                     <h2>Petty Cash Book</h2>
-                    <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Record expenses and miscellaneous transactions</p>
+                    <p class="section-description">Record expenses and miscellaneous transactions</p>
                 </div>
                 
                 <!-- Petty Cash Balance -->
@@ -860,7 +860,7 @@
             <section id="payroll" class="content-section">
                 <div class="section-header">
                     <h2>Payroll Management</h2>
-                    <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Manage employees and process salary payments</p>
+                    <p class="section-description">Manage employees and process salary payments</p>
                 </div>
 
                 <!-- Employee Management -->
@@ -1004,7 +1004,7 @@
     </div>
 
     <!-- Hidden file input for data import -->
-    <input type="file" id="fileInput" accept=".json" style="display: none;">
+    <input type="file" id="fileInput" accept=".json" class="hidden-file-input">
 
     <!-- Change Password Modal -->
     <div id="changePasswordModal" class="modal" style="display:none;">
