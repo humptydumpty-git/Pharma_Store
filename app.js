@@ -60,29 +60,38 @@ class PharmaStore {
     }
 
     setupEventListeners() {
-        // Login form
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleLogin();
-        });
+        // Login form (guarded)
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+        }
 
-        // Logout button
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            this.handleLogout();
-        });
+        // Logout button (guarded)
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
 
-        // Navigation buttons
+        // Navigation buttons (guarded)
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.showSection(btn.dataset.section);
             });
         });
 
-        // Drug form
-        document.getElementById('drugFormElement').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleDrugSubmit();
-        });
+        // Drug form (guarded)
+        const drugFormElem = document.getElementById('drugFormElement');
+        if (drugFormElem) {
+            drugFormElem.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleDrugSubmit();
+            });
+        }
 
         // Sales form (if exists - for backward compatibility)
         const salesForm = document.getElementById('salesForm');
@@ -93,10 +102,13 @@ class PharmaStore {
             });
         }
 
-        // Drug search
-        document.getElementById('drugSearch').addEventListener('input', (e) => {
-            this.filterDrugs(e.target.value);
-        });
+        // Drug search (guarded)
+        const drugSearch = document.getElementById('drugSearch');
+        if (drugSearch) {
+            drugSearch.addEventListener('input', (e) => {
+                this.filterDrugs(e.target.value);
+            });
+        }
 
         // Sales drug selection (if old form exists)
         const saleDrugEl = document.getElementById('saleDrug');
@@ -106,24 +118,26 @@ class PharmaStore {
             });
         }
 
-        // Report date change
-        document.getElementById('reportDate').addEventListener('change', () => {
-            this.updateReportDate();
-        });
+        // Report date change (guarded)
+        const reportDate = document.getElementById('reportDate');
+        if (reportDate) {
+            reportDate.addEventListener('change', () => {
+                this.updateReportDate();
+            });
+        }
 
-        // Change password modal controls
-        document.getElementById('changePasswordBtn').addEventListener('click', () => {
-            this.openChangePassword();
-        });
-        document.getElementById('cancelChangePassword').addEventListener('click', () => {
-            this.closeChangePassword();
-        });
-        document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+        // Change password modal controls (guarded)
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        if (changePasswordBtn) changePasswordBtn.addEventListener('click', () => this.openChangePassword());
+        const cancelChangePassword = document.getElementById('cancelChangePassword');
+        if (cancelChangePassword) cancelChangePassword.addEventListener('click', () => this.closeChangePassword());
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (changePasswordForm) changePasswordForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleChangePassword();
         });
 
-        // Admin add user
+        // Admin add user (guarded)
         const addUserForm = document.getElementById('addUserForm');
         if (addUserForm) {
             addUserForm.addEventListener('submit', (e) => {
@@ -132,7 +146,7 @@ class PharmaStore {
             });
         }
 
-        // Stock adjustment form
+        // Stock adjustment form (guarded)
         const stockAdjustmentForm = document.getElementById('stockAdjustmentForm');
         if (stockAdjustmentForm) {
             stockAdjustmentForm.addEventListener('submit', (e) => {
@@ -141,7 +155,7 @@ class PharmaStore {
             });
         }
 
-        // Stock adjustment drug selection
+        // Stock adjustment drug selection (guarded)
         const adjustmentDrugSelect = document.getElementById('adjustmentDrug');
         if (adjustmentDrugSelect) {
             adjustmentDrugSelect.addEventListener('change', (e) => {
@@ -149,11 +163,11 @@ class PharmaStore {
             });
         }
 
-        // Multi-item sales
+        // Multi-item sales (buttons may or may not exist at load)
         document.getElementById('addSaleItemBtn')?.addEventListener('click', () => this.addSaleItem());
         document.getElementById('processMultiSaleBtn')?.addEventListener('click', () => this.processMultiSale());
 
-        // Petty cash form
+        // Petty cash form (guarded)
         const pettyCashForm = document.getElementById('pettyCashForm');
         if (pettyCashForm) {
             pettyCashForm.addEventListener('submit', (e) => {
@@ -162,7 +176,7 @@ class PharmaStore {
             });
         }
 
-        // Employee form
+        // Employee form (guarded)
         const employeeForm = document.getElementById('employeeForm');
         if (employeeForm) {
             employeeForm.addEventListener('submit', (e) => {
@@ -171,7 +185,7 @@ class PharmaStore {
             });
         }
 
-        // Salary payment form
+        // Salary payment form (guarded)
         const salaryPaymentForm = document.getElementById('salaryPaymentForm');
         if (salaryPaymentForm) {
             salaryPaymentForm.addEventListener('submit', (e) => {
@@ -180,13 +194,13 @@ class PharmaStore {
             });
         }
 
-        // Petty cash balance update
+        // Petty cash balance update (guarded)
         const updateBalanceBtn = document.getElementById('updatePettyCashBalance');
         if (updateBalanceBtn) {
             updateBalanceBtn.addEventListener('click', () => this.updatePettyCashBalance());
         }
 
-        // Employee select change handler (set up once)
+        // Employee select change handler (guarded)
         const paymentEmployeeSelect = document.getElementById('paymentEmployee');
         if (paymentEmployeeSelect) {
             paymentEmployeeSelect.addEventListener('change', (e) => {
@@ -198,6 +212,16 @@ class PharmaStore {
                 }
             });
         }
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.updateDashboard();
+        this.setLanguage(this.currentLanguage);
+        this.initializeFirebase();
+        this.setupOnlineOfflineListeners();
+        this.updateSyncStatus();
+        this.setupInactivityTimer();
     }
 
     // Authentication
