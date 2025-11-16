@@ -1061,40 +1061,49 @@
         </div>
     </div>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration (guarded for file://) -->
     <script>
-        // Register Service Worker for PWA functionality
-        if ('serviceWorker' in navigator) {
+        // Debug: catch runtime errors as alerts and console
+        window.addEventListener('error', (ev) => {
+            const msg = ev.error?.message || ev.message || 'Unknown error';
+            console.error('Captured error:', ev.error || ev);
+            try { alert('JS error: ' + msg); } catch(e){}
+        });
+        window.addEventListener('unhandledrejection', (ev) => {
+            const reason = ev.reason?.message || ev.reason || 'Unhandled rejection';
+            console.error('Unhandled rejection:', ev.reason || ev);
+            try { alert('Promise rejection: ' + reason); } catch(e){}
+        });
+
+        // Only register service worker or use manifest when served over http(s) or localhost.
+        const canUseServiceWorker = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+        if (canUseServiceWorker && 'serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then((registration) => {
-                        console.log('SW registered: ', registration);
-                    })
-                    .catch((registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
-                    });
+                    .then((registration) => console.log('SW registered: ', registration))
+                    .catch((registrationError) => console.warn('SW registration failed: ', registrationError));
             });
+        } else {
+            console.log('Service worker registration skipped (not served over http(s)).');
         }
 
-        // PWA Install Prompt
+        // PWA install prompt wiring must also be safe when not served via HTTP
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
+            if (!canUseServiceWorker) return;
             e.preventDefault();
             deferredPrompt = e;
             const installPrompt = document.getElementById('installPrompt');
-            if (installPrompt) {
-                installPrompt.style.display = 'block';
-            }
+            if (installPrompt) installPrompt.style.display = 'block';
         });
 
         document.getElementById('installBtn')?.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                deferredPrompt = null;
-                document.getElementById('installPrompt').style.display = 'none';
-            }
+            if (!canUseServiceWorker || !deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+            document.getElementById('installPrompt').style.display = 'none';
         });
 
         document.getElementById('dismissInstall')?.addEventListener('click', () => {

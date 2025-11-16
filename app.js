@@ -182,7 +182,10 @@ class PharmaStore {
                     </form>
                 </div>
             </div>
-        // ...existing code...
+        // ...existing code...        # show lines ~140-180 (PowerShell - line numbers start at 1)
+        Get-Content -Path "c:\Users\Administrator\Desktop\githubfirst\Pharma_Store\app.js" | Select-Object -Skip 137 -First 44 | ForEach-Object { "{0,4}: {1}" -f ++$global:i, $_ }        # show lines ~140-180 (PowerShell - line numbers start at 1)
+        Get-Content -Path "c:\Users\Administrator\Desktop\githubfirst\Pharma_Store\app.js" | Select-Object -Skip 137 -First 44 | ForEach-Object { "{0,4}: {1}" -f ++$global:i, $_ }        # show lines ~140-180 (PowerShell - line numbers start at 1)
+        Get-Content -Path "c:\Users\Administrator\Desktop\githubfirst\Pharma_Store\app.js" | Select-Object -Skip 137 -First 44 | ForEach-Object { "{0,4}: {1}" -f ++$global:i, $_ }
 
         // Stock adjustment drug selection (guarded)
         const adjustmentDrugSelect = document.getElementById('adjustmentDrug');
