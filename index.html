@@ -93,6 +93,26 @@
     </script>
 </head>
 <body>
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('forgotPasswordModal')">&times;</span>
+            <h3>Reset Password</h3>
+            <div id="resetPasswordStep1">
+                <p>Enter your email address and we'll send you a link to reset your password.</p>
+                <div class="form-group">
+                    <label for="resetEmail">Email</label>
+                    <input type="email" id="resetEmail" class="form-control" required>
+                </div>
+                <button class="btn btn-primary" onclick="pharmaStore.sendResetLink()">Send Reset Link</button>
+            </div>
+            <div id="resetPasswordStep2" style="display: none;">
+                <p>Please check your email for the password reset link.</p>
+                <p>Didn't receive an email? <a href="javascript:void(0)" onclick="showResetStep(1)">Resend</a></p>
+            </div>
+        </div>
+    </div>
+
     <!-- Login Screen -->
     <div id="loginScreen" class="login-container">
         <div class="login-card">
@@ -121,6 +141,9 @@
                 <button type="submit" class="login-btn">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
+                <div class="forgot-password">
+                    <a href="#" onclick="openModal('forgotPasswordModal'); return false;">Forgot Password?</a>
+                </div>
             </form>
         </div>
     </div>
