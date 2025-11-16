@@ -16,42 +16,26 @@
     <meta name="apple-mobile-web-app-title" content="PharmaStore">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, connectFirestoreEmulator, writeBatch, collection, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getStorage } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
-        
-        // Firebase configuration (replace with your config)
-        const firebaseConfig = {
-            apiKey: "your-api-key",
-            authDomain: "your-project.firebaseapp.com",
-            projectId: "your-project-id",
-            storageBucket: "your-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "your-app-id"
-        };
-        
-        // Initialize Firebase
-        window.firebaseApp = initializeApp(firebaseConfig);
-        window.firestore = getFirestore(window.firebaseApp);
-        window.firebaseAuth = getAuth(window.firebaseApp);
-        window.firebaseStorage = getStorage(window.firebaseApp);
-        
-        // Make Firebase available globally with all needed functions
-        window.Firebase = {
-            app: window.firebaseApp,
-            firestore: window.firestore,
-            auth: window.firebaseAuth,
-            storage: window.firebaseStorage,
-            // Export Firebase functions
-            writeBatch: writeBatch,
-            collection: collection,
-            doc: doc,
-            setDoc: setDoc,
-            getDoc: getDoc,
-            onSnapshot: onSnapshot
+    <!-- Local Storage Based App -->
+    <script>
+        // Simple localStorage wrapper for offline use
+        window.PharmaStoreDB = {
+            get: (key) => {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+            },
+            set: (key, data) => {
+                localStorage.setItem(key, JSON.stringify(data));
+                return true;
+            },
+            remove: (key) => {
+                localStorage.removeItem(key);
+                return true;
+            },
+            clear: () => {
+                localStorage.clear();
+                return true;
+            }
         };
     </script>
 

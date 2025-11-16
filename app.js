@@ -10,21 +10,11 @@ class PharmaStore {
         this.pettyCashBalance = this.loadData('pettyCashBalance') || 0;
         this.employees = this.loadData('employees') || [];
         this.salaryPayments = this.loadData('salaryPayments') || [];
+        
+        // Load users or initialize with default users
         const loadedUsers = this.loadData('users');
         if (Array.isArray(loadedUsers) && loadedUsers.length > 0) {
-            // Ensure all users have createdAt field
-            let needsUpdate = false;
-            this.users = loadedUsers.map(user => {
-                if (!user.createdAt) {
-                    user.createdAt = new Date().toISOString();
-                    needsUpdate = true;
-                }
-                return user;
-            });
-            // Save if we updated any users
-            if (needsUpdate) {
-                this.saveData('users', this.users);
-            }
+            this.users = loadedUsers;
         } else {
             this.users = [
                 { username: 'admin', password: 'password123', type: 'admin', createdAt: new Date().toISOString() },
@@ -32,12 +22,12 @@ class PharmaStore {
             ];
             this.saveData('users', this.users);
         }
+        
         this.auditLog = this.loadData('auditLog') || [];
         this.currentLanguage = this.loadData('language') || 'en';
         this.translations = this.getTranslations();
         this.isOnline = navigator.onLine;
-        this.cloudSyncEnabled = this.loadData('cloudSyncEnabled') || false;
-        this.firebaseInitialized = false;
+        this.cloudSyncEnabled = false; // Disable cloud sync
         
         // Auto-logout timer
         this.inactivityTimer = null;
@@ -47,6 +37,32 @@ class PharmaStore {
         this.warningTime = 50 * 1000; // Show warning at 50 seconds
         
         this.init();
+    }
+
+    // Data handling methods
+    loadData(key) {
+        try {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        } catch (e) {
+            console.error('Error loading data:', e);
+            return null;
+        }
+    }
+
+    saveData(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+            return true;
+        } catch (e) {
+            console.error('Error saving data:', e);
+            return false;
+        }
+    }
+
+    initializeFirebase() {
+        // No-op in offline mode
+        console.log('Running in offline mode - Local storage only');
     }
 
     init() {
@@ -250,7 +266,6 @@ class PharmaStore {
         this.setupEventListeners();
         this.updateDashboard();
         this.setLanguage(this.currentLanguage);
-        this.initializeFirebase();
         this.setupOnlineOfflineListeners();
         this.updateSyncStatus();
         this.setupInactivityTimer();
@@ -261,21 +276,67 @@ class PharmaStore {
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
         const userType = document.getElementById('userType').value;
+        const loginMessage = document.getElementById('loginMessage');
 
-        let user = this.users.find(u =>
-            u.username === username && u.password === password && (userType ? u.type === userType : true)
-        );
+        // Basic validation
+        if (!username || !password) {
+            if (loginMessage) {
+                loginMessage.textContent = 'Please enter both username and password';
+                loginMessage.style.display = 'block';
+            }
+            return;
+        }
+
+        // Find user in the users array
+        const user = this.users.find(function(u) {
+            return u.username === username && 
+                   u.password === password && 
+                   (userType ? u.type === userType : true);
+        });
 
         if (user) {
             this.currentUser = user;
             this.isAdmin = user.type === 'admin';
+            
+            // Log the login event
+            if (this.logAuditEvent) {
+                this.logAuditEvent('login', 'User ' + username + ' logged in');
+            }
+            
+            // Show the main app
             this.showMainApp();
-            this.updateDashboard();
-            this.populateSalesDrugs();
-            this.renderDrugs();
-            this.renderSales();
+            
+            // Initialize app data
+            if (this.updateDashboard) this.updateDashboard();
+            if (this.populateSalesDrugs) this.populateSalesDrugs();
+            if (this.renderDrugs) this.renderDrugs();
+            if (this.renderSales) this.renderSales();
+            
+            // Show welcome message
+            if (loginMessage) {
+                loginMessage.textContent = 'Welcome, ' + username + '!';
+                loginMessage.style.color = 'green';
+                loginMessage.style.display = 'block';
+                
+                // Hide message after 3 seconds
+                var self = this;
+                setTimeout(function() {
+                    loginMessage.style.display = 'none';
+                }, 3000);
+            }
+            
         } else {
-            this.showMessage('Invalid credentials', 'error');
+            // Invalid credentials
+            if (loginMessage) {
+                loginMessage.textContent = 'Invalid username or password';
+                loginMessage.style.color = 'red';
+                loginMessage.style.display = 'block';
+            }
+            
+            // Log failed login attempt
+            if (this.logAuditEvent) {
+                this.logAuditEvent('login_failed', 'Failed login attempt for username: ' + username);
+            }
         }
     }
 
@@ -488,7 +549,7 @@ class PharmaStore {
             this.logAuditEvent('add_drug', `Added drug: ${drugData.name}`);
         }
 
-        this.saveDataWithSync('drugs', this.drugs);
+        this.saveData('drugs', this.drugs);
         this.renderDrugs();
         this.populateSalesDrugs();
         this.updateDashboard();
@@ -542,7 +603,7 @@ class PharmaStore {
         if (confirm('Are you sure you want to delete this drug?')) {
             const drug = this.drugs.find(d => d.id === id);
             this.drugs = this.drugs.filter(d => d.id !== id);
-            this.saveDataWithSync('drugs', this.drugs);
+            this.saveData('drugs', this.drugs);
             this.renderDrugs();
             this.populateSalesDrugs();
             this.updateDashboard();
@@ -771,21 +832,8 @@ class PharmaStore {
         }
 
         // Persist locally
-        if (typeof this.saveData === 'function') {
-            try {
-                this.saveData('sales', this.sales);
-                this.saveData('drugs', this.drugs);
-            } catch (err) {
-                console.error('saveData failed', err);
-                // fallback to localStorage
-                localStorage.setItem('sales', JSON.stringify(this.sales));
-                localStorage.setItem('drugs', JSON.stringify(this.drugs));
-            }
-        } else {
-            // fallback to localStorage
-            localStorage.setItem('sales', JSON.stringify(this.sales));
-            localStorage.setItem('drugs', JSON.stringify(this.drugs));
-        }
+        this.saveData('sales', this.sales);
+        this.saveData('drugs', this.drugs);
 
         // Update UI
         if (typeof this.renderSales === 'function') this.renderSales();
