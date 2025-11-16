@@ -10,79 +10,43 @@ class PharmaStore {
         this.pettyCashBalance = this.loadData('pettyCashBalance') || 0;
         this.employees = this.loadData('employees') || [];
         this.salaryPayments = this.loadData('salaryPayments') || [];
-
-        // Load or initialize users with enhanced user management fields
         const loadedUsers = this.loadData('users');
         if (Array.isArray(loadedUsers) && loadedUsers.length > 0) {
-            // Migrate existing users to new format if needed
-            this.users = loadedUsers.map(user => ({
-                id: user.id || 'user-' + Date.now() + Math.random().toString(36).substr(2, 9),
-                username: user.username,
-                password: user.password, // In production, this should be hashed
-                email: user.email || `${user.username}@pharmastore.com`,
-                type: user.type || 'user',
-                status: user.status || 'active',
-                failedLoginAttempts: user.failedLoginAttempts || 0,
-                lastLogin: user.lastLogin || null,
-                createdAt: user.createdAt || new Date().toISOString(),
-                updatedAt: user.updatedAt || new Date().toISOString(),
-                lastPasswordChange: user.lastPasswordChange || new Date().toISOString(),
-                passwordResetToken: user.passwordResetToken || null,
-                passwordResetExpires: user.passwordResetExpires || null,
-                profile: user.profile || {
-                    firstName: user.firstName || user.username,
-                    lastName: user.lastName || '',
-                    phone: user.phone || '',
-                    address: user.address || ''
+            // Ensure all users have createdAt field
+            let needsUpdate = false;
+            this.users = loadedUsers.map(user => {
+                if (!user.createdAt) {
+                    user.createdAt = new Date().toISOString();
+                    needsUpdate = true;
                 }
-            }));
-            this.saveData('users', this.users);
+                return user;
+            });
+            // Save if we updated any users
+            if (needsUpdate) {
+                this.saveData('users', this.users);
+            }
         } else {
-            // Initialize with default admin user
-            this.users = [{
-                id: 'admin-' + Date.now(),
-                username: 'admin',
-                password: 'password123', // In production, this should be hashed
-                email: 'admin@pharmastore.com',
-                type: 'admin',
-                status: 'active',
-                failedLoginAttempts: 0,
-                lastLogin: null,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                lastPasswordChange: new Date().toISOString(),
-                passwordResetToken: null,
-                passwordResetExpires: null,
-                profile: {
-                    firstName: 'Admin',
-                    lastName: 'User',
-                    phone: '',
-                    address: ''
-                }
-            }];
+            this.users = [
+                { username: 'admin', password: 'password123', type: 'admin', createdAt: new Date().toISOString() },
+                { username: 'user', password: 'user123', type: 'user', createdAt: new Date().toISOString() }
+            ];
             this.saveData('users', this.users);
         }
-
         this.auditLog = this.loadData('auditLog') || [];
         this.currentLanguage = this.loadData('language') || 'en';
         this.translations = this.getTranslations();
         this.isOnline = navigator.onLine;
         this.cloudSyncEnabled = this.loadData('cloudSyncEnabled') || false;
         this.firebaseInitialized = false;
-
+        
         // Auto-logout timer
         this.inactivityTimer = null;
         this.inactivityWarningTimer = null;
         this.lastActivityTime = Date.now();
-        this.inactivityTimeout = 30 * 60 * 1000; // 30 minutes in milliseconds
-        this.warningTime = 25 * 60 * 1000; // Show warning at 25 minutes
-
-        // Initialize offline functionality
-        this.offlineQueue = this.loadData('offlineQueue') || [];
-        this.syncInProgress = false;
-
+        this.inactivityTimeout = 60 * 1000; // 1 minute in milliseconds
+        this.warningTime = 50 * 1000; // Show warning at 50 seconds
+        
         this.init();
-        this.initOffline();
     }
 
     init() {
@@ -93,216 +57,6 @@ class PharmaStore {
         this.setupOnlineOfflineListeners();
         this.updateSyncStatus();
         this.setupInactivityTimer();
-        this.updateOnlineStatus(); // Ensure status is updated on init
-    }
-    
-    /**
-     * Initialize offline functionality
-     */
-    initOffline() {
-        // Set up online/offline event listeners
-        window.addEventListener('online', this.handleOnline.bind(this));
-        window.addEventListener('offline', this.handleOffline.bind(this));
-        
-        // Initial status update
-        this.updateOnlineStatus();
-        
-        // Try to sync any pending operations
-        if (this.isOnline) {
-            this.syncOfflineQueue();
-        }
-        
-        // Monitor connection status periodically
-        setInterval(() => this.checkConnection(), 30000); // Check every 30 seconds
-    }
-    
-    /**
-     * Handle online event
-     */
-    handleOnline() {
-        console.log('Application is online');
-        this.isOnline = true;
-        this.updateOnlineStatus();
-        this.syncOfflineQueue();
-    }
-    
-    /**
-     * Handle offline event
-     */
-    handleOffline() {
-        console.log('Application is offline');
-        this.isOnline = false;
-        this.updateOnlineStatus();
-        this.showNotification('You are currently offline. Changes will be synced when you are back online.', 'warning');
-    }
-    
-    /**
-     * Check connection status
-     */
-    checkConnection() {
-        const wasOnline = this.isOnline;
-        this.isOnline = navigator.onLine;
-        
-        if (wasOnline !== this.isOnline) {
-            this.updateOnlineStatus();
-            if (this.isOnline) {
-                this.syncOfflineQueue();
-            }
-        }
-    }
-    
-    /**
-     * Update UI based on online status
-     */
-    updateOnlineStatus() {
-        const statusElement = document.getElementById('syncStatus');
-        if (!statusElement) return;
-        
-        if (this.isOnline) {
-            statusElement.innerHTML = '<i class="fas fa-wifi"></i> <span>Online</span>';
-            statusElement.className = 'status-indicator online';
-        } else {
-            statusElement.innerHTML = '<i class="fas fa-wifi-slash"></i> <span>Offline</span>';
-            statusElement.className = 'status-indicator offline';
-        }
-        
-        // Update body class for styling
-        document.body.classList.toggle('offline', !this.isOnline);
-    }
-    
-    /**
-     * Add operation to offline queue
-     */
-    addToOfflineQueue(operation, data) {
-        if (this.isOnline && !this.syncInProgress) {
-            return false; // Don't queue if online and not in the middle of a sync
-        }
-        
-        const queueItem = {
-            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-            operation,
-            data,
-            timestamp: new Date().toISOString(),
-            retryCount: 0
-        };
-        
-        this.offlineQueue.push(queueItem);
-        this.saveData('offlineQueue', this.offlineQueue);
-        
-        console.log('Added to offline queue:', queueItem);
-        return queueItem.id;
-    }
-    
-    /**
-     * Process the offline queue
-     */
-    async syncOfflineQueue() {
-        if (!this.isOnline || this.syncInProgress || this.offlineQueue.length === 0) {
-            return;
-        }
-        
-        this.syncInProgress = true;
-        const statusElement = document.getElementById('syncStatus');
-        
-        try {
-            if (statusElement) {
-                statusElement.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> <span>Syncing...</span>';
-                statusElement.className = 'status-indicator syncing';
-            }
-            
-            // Process each item in the queue
-            while (this.offlineQueue.length > 0) {
-                const item = this.offlineQueue[0];
-                
-                try {
-                    console.log('Processing queued item:', item);
-                    
-                    // Process based on operation type
-                    switch (item.operation) {
-                        case 'addDrug':
-                            await this.processAddDrug(item.data);
-                            break;
-                        case 'updateDrug':
-                            await this.processUpdateDrug(item.data);
-                            break;
-                        case 'deleteDrug':
-                            await this.processDeleteDrug(item.data);
-                            break;
-                        case 'addSale':
-                            await this.processAddSale(item.data);
-                            break;
-                        // Add more operation types as needed
-                    }
-                    
-                    // Remove successfully processed item
-                    this.offlineQueue.shift();
-                    this.saveData('offlineQueue', this.offlineQueue);
-                    
-                } catch (error) {
-                    console.error('Error processing queued item:', error);
-                    item.retryCount++;
-                    
-                    if (item.retryCount >= 3) {
-                        // Too many retries, give up and remove
-                        console.warn('Max retries reached, removing item from queue:', item);
-                        this.offlineQueue.shift();
-                    } else {
-                        // Move to end of queue for retry
-                        this.offlineQueue.push(this.offlineQueue.shift());
-                    }
-                    
-                    this.saveData('offlineQueue', this.offlineQueue);
-                    break; // Stop processing further items on error
-                }
-            }
-            
-            this.showNotification('All changes have been synced', 'success');
-            
-        } catch (error) {
-            console.error('Error syncing offline queue:', error);
-            this.showNotification('Error syncing offline changes', 'error');
-        } finally {
-            this.syncInProgress = false;
-            this.updateOnlineStatus();
-        }
-    }
-    
-    /**
-     * Process add drug operation from offline queue
-     */
-    async processAddDrug(drugData) {
-        // Implement your actual API call here
-        // const response = await api.addDrug(drugData);
-        // For now, we'll just log it
-        console.log('Processing add drug:', drugData);
-        return Promise.resolve({ success: true });
-    }
-    
-    /**
-     * Process update drug operation from offline queue
-     */
-    async processUpdateDrug(drugData) {
-        // Implement your actual API call here
-        console.log('Processing update drug:', drugData);
-        return Promise.resolve({ success: true });
-    }
-    
-    /**
-     * Process delete drug operation from offline queue
-     */
-    async processDeleteDrug(drugId) {
-        // Implement your actual API call here
-        console.log('Processing delete drug:', drugId);
-        return Promise.resolve({ success: true });
-    }
-    
-    /**
-     * Process add sale operation from offline queue
-     */
-    async processAddSale(saleData) {
-        // Implement your actual API call here
-        console.log('Processing add sale:', saleData);
-        return Promise.resolve({ success: true });
     }
 
     setupEventListeners() {
@@ -441,47 +195,48 @@ class PharmaStore {
                 const amountInput = document.getElementById('paymentAmount');
                 if (amountInput) {
                     amountInput.value = salary.toFixed(2);
-        
-        // Check if user exists and is active
-        if (!user) {
-            this.showMessage('Invalid username or password', 'error');
-            this.logActivity('login_failed', `Failed login attempt for username: ${username} - User not found`);
-            return;
+                }
+            });
         }
-        
-        // Check if account is locked
-        if (user.status === 'locked') {
-            const timeLeft = this.getAccountLockTimeLeft(user);
-            if (timeLeft > 0) {
-                this.showMessage(`Account locked. Please try again in ${timeLeft} minutes.`, 'error');
-                return;
-            } else {
-                // Unlock the account after lock time has passed
-                user.status = 'active';
-                user.failedLoginAttempts = 0;
-                user.lockedUntil = null;
-                this.saveData('users', this.users);
-            }
+    }
+
+    // Authentication
+    handleLogin() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const userType = document.getElementById('userType').value;
+
+        let user = this.users.find(u =>
+            u.username === username && u.password === password && (userType ? u.type === userType : true)
+        );
+
+        if (user) {
+            this.currentUser = user;
+            this.isAdmin = user.type === 'admin';
+            this.showMainApp();
+            this.updateDashboard();
+            this.populateSalesDrugs();
+            this.renderDrugs();
+            this.renderSales();
+        } else {
+            this.showMessage('Invalid credentials', 'error');
         }
+    }
+
+    handleLogout() {
+        // Clear inactivity timers
+        if (this.inactivityTimer) {
+            clearTimeout(this.inactivityTimer);
+            this.inactivityTimer = null;
+        }
+        if (this.inactivityWarningTimer) {
+            clearTimeout(this.inactivityWarningTimer);
+            this.inactivityWarningTimer = null;
+        }
+        this.hideInactivityWarning();
         
-        // Check password (in production, use proper password hashing)
-        if (user.password !== password) {
-            // Increment failed login attempts
-            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-            
-            // Check if account should be locked
-            if (user.failedLoginAttempts >= 5) {
-                user.status = 'locked';
-                user.lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
-                this.showMessage('Account locked due to too many failed attempts. Please try again in 30 minutes.', 'error');
-                this.logActivity('account_locked', `Account locked for user: ${username} due to multiple failed login attempts`);
-            } else {
-                const attemptsLeft = 5 - user.failedLoginAttempts;
-                this.showMessage(`Invalid password. ${attemptsLeft} attempts remaining.`, 'error');
-                this.logActivity('login_failed', `Failed login attempt for user: ${username} - ${attemptsLeft} attempts left`);
-            }
-            
-            this.saveData('users', this.users);
+        if (this.currentUser) {
+            this.logAuditEvent('logout', `User ${this.currentUser.username} logged out`);
         }
         this.currentUser = null;
         this.isAdmin = false;
@@ -637,7 +392,7 @@ class PharmaStore {
         document.getElementById('drugFormElement').dataset.editId = '';
     }
 
-    async handleDrugSubmit() {
+    handleDrugSubmit() {
         const form = document.getElementById('drugFormElement');
         const isEdit = form.dataset.editId;
         
@@ -648,10 +403,7 @@ class PharmaStore {
             price: parseFloat(document.getElementById('drugPrice').value),
             expiry: document.getElementById('drugExpiry').value,
             supplier: document.getElementById('drugSupplier').value || 'N/A',
-            id: isEdit || 'temp-' + Date.now().toString(),
-            status: this.isOnline ? 'synced' : 'pending',
-            createdAt: isEdit ? undefined : new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            id: isEdit || Date.now().toString()
         };
 
         // Validation
@@ -665,152 +417,539 @@ class PharmaStore {
             return;
         }
 
-        try {
-            if (isEdit) {
-                // Update existing drug
-                const index = this.drugs.findIndex(d => d.id === isEdit);
-                if (index !== -1) {
-                    // Preserve creation date if it exists
-                    if (this.drugs[index].createdAt) {
-                        drugData.createdAt = this.drugs[index].createdAt;
-                    }
-                    this.drugs[index] = { ...this.drugs[index], ...drugData };
-                    
-                    if (this.isOnline) {
-                        try {
-                            // If online, try to update on server
-                            // await api.updateDrug(drugData.id, drugData);
-                            this.showNotification('Drug updated successfully', 'success');
-                        } catch (error) {
-                            // If server update fails, add to offline queue
-                            this.addToOfflineQueue('updateDrug', drugData);
-                            this.showNotification('Update saved locally (offline)', 'info');
-                        }
-                    } else {
-                        // If offline, add to queue
-                        this.addToOfflineQueue('updateDrug', drugData);
-                        this.showNotification('Update saved locally (offline)', 'info');
-                    }
-                }
-            } else {
-                // Add new drug
-                this.drugs.push(drugData);
-                
-                if (this.isOnline) {
-                    try {
-                        // If online, try to save to server
-                        // const savedDrug = await api.addDrug(drugData);
-                        // Update local copy with server data
-                        // this.updateLocalDrug(savedDrug);
-                        this.showNotification('Drug added successfully', 'success');
-                    } catch (error) {
-                        // If server save fails, add to offline queue
-                        this.addToOfflineQueue('addDrug', drugData);
-                        this.showNotification('Drug saved locally (offline)', 'info');
-                    }
-                } else {
-                    // If offline, add to queue
-                    this.addToOfflineQueue('addDrug', drugData);
-                    this.showNotification('Drug saved locally (offline)', 'info');
-                }
+        if (isEdit) {
+            // Update existing drug
+            const index = this.drugs.findIndex(d => d.id === isEdit);
+            if (index !== -1) {
+                this.drugs[index] = drugData;
+                this.showMessage('Drug updated successfully', 'success');
+                this.logAuditEvent('edit_drug', `Updated drug: ${drugData.name}`);
             }
-            
-            // Save to local storage
-            this.saveData('drugs', this.drugs);
-            
-            // Update UI
+        } else {
+            // Add new drug
+            this.drugs.push(drugData);
+            this.showMessage('Drug added successfully', 'success');
+            this.logAuditEvent('add_drug', `Added drug: ${drugData.name}`);
+        }
+
+        this.saveDataWithSync('drugs', this.drugs);
+        this.renderDrugs();
+        this.populateSalesDrugs();
+        this.updateDashboard();
+        this.cancelDrugForm();
+    }
+
+    renderDrugs() {
+        const tbody = document.getElementById('drugTableBody');
+        tbody.innerHTML = '';
+
+        this.drugs.forEach(drug => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${drug.name}</td>
+                <td>${drug.category}</td>
+                <td class="${drug.quantity <= 3 ? 'text-danger' : ''}">${drug.quantity}</td>
+                <td>$${drug.price.toFixed(2)}</td>
+                <td>${this.formatDate(drug.expiry)}</td>
+                <td>${drug.supplier}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-edit" onclick="pharmaStore.editDrug('${drug.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-delete" onclick="pharmaStore.deleteDrug('${drug.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    editDrug(id) {
+        const drug = this.drugs.find(d => d.id === id);
+        if (!drug) return;
+
+        document.getElementById('drugName').value = drug.name;
+        document.getElementById('drugCategory').value = drug.category;
+        document.getElementById('drugQuantity').value = drug.quantity;
+        document.getElementById('drugPrice').value = drug.price;
+        document.getElementById('drugExpiry').value = drug.expiry;
+        document.getElementById('drugSupplier').value = drug.supplier;
+        
+        document.getElementById('drugFormElement').dataset.editId = id;
+        document.getElementById('drugForm').style.display = 'block';
+    }
+
+    deleteDrug(id) {
+        if (confirm('Are you sure you want to delete this drug?')) {
+            const drug = this.drugs.find(d => d.id === id);
+            this.drugs = this.drugs.filter(d => d.id !== id);
+            this.saveDataWithSync('drugs', this.drugs);
             this.renderDrugs();
+            this.populateSalesDrugs();
             this.updateDashboard();
-            this.cancelDrugForm();
-            
-            // Log activity
-            this.logActivity(isEdit ? 'update_drug' : 'add_drug', 
-                `${isEdit ? 'Updated' : 'Added'} drug: ${drugData.name}`);
-                
-            return drugData;
-            
-        } catch (error) {
-            console.error('Error saving drug:', error);
-            this.showNotification('Error saving drug: ' + error.message, 'error');
-            throw error;
+            this.showMessage('Drug deleted successfully', 'success');
+            if (drug) {
+                this.logAuditEvent('delete_drug', `Deleted drug: ${drug.name}`);
+            }
         }
     }
 
-// ...
+    filterDrugs(searchTerm) {
+        const tbody = document.getElementById('drugTableBody');
+        const rows = tbody.querySelectorAll('tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm.toLowerCase()) ? '' : 'none';
+        });
+    }
 
-    // Add a new sale
-    async addSale(sale) {
-        try {
-            const tempId = 'sale-temp-' + Date.now();
-            const newSale = {
-                ...sale,
-                id: tempId,
-                status: this.isOnline ? 'synced' : 'pending',
-                date: new Date().toISOString(),
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
+    // Sales Management
+    populateSalesDrugs() {
+        const select = document.getElementById('saleDrug');
+        if (!select) return;
+        select.innerHTML = '<option value="">Select Drug</option>';
+        
+        this.drugs.forEach(drug => {
+            if (drug.quantity > 0) {
+                const option = document.createElement('option');
+                option.value = drug.id;
+                option.textContent = `${drug.name} (Stock: ${drug.quantity})`;
+                option.setAttribute('data-price', drug.price);
+                select.appendChild(option);
+            }
+        });
+    }
+
+    updateSalePrice(drugId) {
+        const drug = this.drugs.find(d => d.id === drugId);
+        const priceInput = document.getElementById('salePrice');
+        
+        if (!priceInput) return; // Old form doesn't exist
+        
+        if (drug) {
+            priceInput.value = drug.price;
+        } else {
+            priceInput.value = '';
+        }
+    }
+
+    handleSaleSubmit() {
+        const saleDrugEl = document.getElementById('saleDrug');
+        const saleQuantityEl = document.getElementById('saleQuantity');
+        const salePriceEl = document.getElementById('salePrice');
+        const customerNameEl = document.getElementById('customerName');
+        const paymentMethodEl = document.getElementById('paymentMethod');
+        
+        if (!saleDrugEl || !saleQuantityEl || !salePriceEl) {
+            this.showMessage('Old sales form not available. Please use the multi-item sales form.', 'error');
+            return;
+        }
+        
+        const drugId = saleDrugEl.value;
+        const quantity = parseInt(saleQuantityEl.value);
+        const price = parseFloat(salePriceEl.value);
+        const customerName = customerNameEl ? customerNameEl.value : 'Walk-in Customer';
+        const paymentMethod = paymentMethodEl ? paymentMethodEl.value : 'Cash';
+
+        if (!drugId || !quantity || !price) {
+            this.showMessage('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const drug = this.drugs.find(d => d.id === drugId);
+        if (!drug) {
+            this.showMessage('Drug not found', 'error');
+            return;
+        }
+
+        if (drug.quantity < quantity) {
+            this.showMessage('Insufficient stock', 'error');
+            return;
+        }
+
+        // Process sale
+        const sale = {
+            id: Date.now().toString(),
+            drugId: drugId,
+            drugName: drug.name,
+            quantity: quantity,
+            price: price,
+            total: quantity * price,
+            customerName: customerName || 'Walk-in Customer',
+            paymentMethod: paymentMethod,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toTimeString().split(' ')[0],
+            soldBy: this.currentUser.username
+        };
+
+        this.sales.push(sale);
+        drug.quantity -= quantity;
+
+        this.saveDataWithSync('sales', this.sales);
+        this.saveDataWithSync('drugs', this.drugs);
+        
+        this.renderSales();
+        this.populateSalesDrugs();
+        this.updateDashboard();
+        this.showReceipt(sale);
+        this.showMessage('Sale processed successfully', 'success');
+        this.logAuditEvent('sale', `Sold ${quantity} units of ${sale.drugName} for $${sale.total.toFixed(2)}`);
+
+        // Reset form (if exists)
+        const salesForm = document.getElementById('salesForm');
+        if (salesForm) {
+            salesForm.reset();
+        }
+    }
+
+    showReceipt(sale) {
+        const receiptContent = document.getElementById('receiptContent');
+        receiptContent.innerHTML = `
+            <div class="receipt">
+                <h4>PharmaStore Receipt</h4>
+                <p><strong>Date:</strong> ${this.formatDate(sale.date)}</p>
+                <p><strong>Time:</strong> ${sale.time}</p>
+                <p><strong>Sold by:</strong> ${sale.soldBy}</p>
+                <hr>
+                <p><strong>Drug:</strong> ${sale.drugName}</p>
+                <p><strong>Quantity:</strong> ${sale.quantity}</p>
+                <p><strong>Price per unit:</strong> $${sale.price.toFixed(2)}</p>
+                <p><strong>Customer:</strong> ${sale.customerName}</p>
+                <p><strong>Payment:</strong> ${sale.paymentMethod}</p>
+                <hr>
+                <p><strong>Total Amount:</strong> $${sale.total.toFixed(2)}</p>
+                <hr>
+                <p><em>Thank you for your business!</em></p>
+            </div>
+        `;
+        
+        document.getElementById('receiptContainer').style.display = 'block';
+    }
+
+    printReceipt() {
+        const receiptContent = document.getElementById('receiptContent').innerHTML;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Receipt</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        .receipt { max-width: 400px; margin: 0 auto; }
+                        h4 { text-align: center; color: #333; }
+                        hr { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
+                        p { margin: 5px 0; }
+                    </style>
+                </head>
+                <body>
+                    ${receiptContent}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    renderSales() {
+        const tbody = document.getElementById('salesTableBody');
+        tbody.innerHTML = '';
+
+        const recentSales = this.sales.slice(-20).reverse(); // Show last 20 sales
+        
+        recentSales.forEach(sale => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${this.formatDate(sale.date)} ${sale.time}</td>
+                <td>${sale.drugName}</td>
+                <td>${sale.quantity}</td>
+                <td>$${sale.price.toFixed(2)}</td>
+                <td>$${sale.total.toFixed(2)}</td>
+                <td>${sale.customerName}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-secondary" onclick="pharmaStore.reprintReceipt('${sale.id}')" title="Print">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        <button class="btn-delete" onclick="pharmaStore.deleteSale('${sale.id}')" title="Delete & Restock">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    reprintReceipt(saleId) {
+        const sale = this.sales.find(s => s.id === saleId);
+        if (sale) {
+            this.showReceipt(sale);
+            setTimeout(() => this.printReceipt(), 500);
+        }
+    }
+
+    // Reports
+    updateReportDate() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('reportDate').value = today;
+    }
+
+    generateReport() {
+        const reportType = document.getElementById('reportType').value;
+        const reportDate = document.getElementById('reportDate').value;
+        
+        let filteredSales = [];
+        let title = '';
+        
+        switch (reportType) {
+            case 'daily':
+                filteredSales = this.getDailySales(reportDate);
+                title = `Daily Sales Report - ${this.formatDate(reportDate)}`;
+                break;
+            case 'weekly':
+                filteredSales = this.getWeeklySales(reportDate);
+                title = `Weekly Sales Report - Week of ${this.formatDate(reportDate)}`;
+                break;
+            case 'monthly':
+                filteredSales = this.getMonthlySales(reportDate);
+                title = `Monthly Sales Report - ${new Date(reportDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+                break;
+            case 'yearly':
+                filteredSales = this.getYearlySales(reportDate);
+                title = `Yearly Sales Report - ${new Date(reportDate).getFullYear()}`;
+                break;
+            case 'inventory':
+                this.generateInventoryReport();
+                return;
+        }
+        
+        this.displaySalesReport(filteredSales, title);
+    }
+
+    getDailySales(date) {
+        return this.sales.filter(sale => sale.date === date);
+    }
+
+    getWeeklySales(date) {
+        const targetDate = new Date(date);
+        const weekStart = new Date(targetDate);
+        weekStart.setDate(targetDate.getDate() - targetDate.getDay());
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        
+        return this.sales.filter(sale => {
+            const saleDate = new Date(sale.date);
+            return saleDate >= weekStart && saleDate <= weekEnd;
+        });
+    }
+
+    getMonthlySales(date) {
+        const targetDate = new Date(date);
+        const year = targetDate.getFullYear();
+        const month = targetDate.getMonth();
+        
+        return this.sales.filter(sale => {
+            const saleDate = new Date(sale.date);
+            return saleDate.getFullYear() === year && saleDate.getMonth() === month;
+        });
+    }
+
+    getYearlySales(date) {
+        const year = new Date(date).getFullYear();
+        return this.sales.filter(sale => {
+            return new Date(sale.date).getFullYear() === year;
+        });
+    }
+
+    displaySalesReport(sales, title) {
+        const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+        const totalItems = sales.reduce((sum, sale) => sum + sale.quantity, 0);
+        
+        document.getElementById('reportTitle').textContent = title;
+        document.getElementById('totalSalesAmount').textContent = `$${totalSales.toFixed(2)}`;
+        document.getElementById('totalItemsSold').textContent = totalItems;
+        document.getElementById('totalTransactions').textContent = sales.length;
+        
+        let reportContent = `
+            <div class="report-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Drug</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th>Customer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        sales.forEach(sale => {
+            reportContent += `
+                <tr>
+                    <td>${this.formatDate(sale.date)}</td>
+                    <td>${sale.drugName}</td>
+                    <td>${sale.quantity}</td>
+                    <td>$${sale.price.toFixed(2)}</td>
+                    <td>$${sale.total.toFixed(2)}</td>
+                    <td>${sale.customerName}</td>
+                </tr>
+            `;
+        });
+        
+        reportContent += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        document.getElementById('reportContent').innerHTML = reportContent;
+        document.getElementById('reportContainer').style.display = 'block';
+    }
+
+    generateInventoryReport() {
+        const title = 'Inventory Report';
+        document.getElementById('reportTitle').textContent = title;
+        
+        const totalValue = this.drugs.reduce((sum, drug) => sum + (drug.quantity * drug.price), 0);
+        const lowStockItems = this.drugs.filter(drug => drug.quantity <= 3);
+        const expiringSoon = this.drugs.filter(drug => {
+            const expiryDate = new Date(drug.expiry);
+            const thirtyDaysFromNow = new Date();
+            thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+            return expiryDate <= thirtyDaysFromNow;
+        });
+        
+        document.getElementById('totalSalesAmount').textContent = `$${totalValue.toFixed(2)}`;
+        document.getElementById('totalItemsSold').textContent = this.drugs.length;
+        document.getElementById('totalTransactions').textContent = lowStockItems.length;
+        
+        let reportContent = `
+            <div class="inventory-summary">
+                <h4>Inventory Summary</h4>
+                <p><strong>Total Items:</strong> ${this.drugs.length}</p>
+                <p><strong>Total Value:</strong> $${totalValue.toFixed(2)}</p>
+                <p><strong>Low Stock Items:</strong> ${lowStockItems.length}</p>
+                <p><strong>Expiring Soon:</strong> ${expiringSoon.length}</p>
+            </div>
+            <div class="report-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Value</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        this.drugs.forEach(drug => {
+            const value = drug.quantity * drug.price;
+            const isLowStock = drug.quantity <= 3;
+            const isExpiringSoon = new Date(drug.expiry) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            let status = 'OK';
             
-            // Update local inventory immediately
-            newSale.items.forEach(item => {
-                const drug = this.drugs.find(d => d.id === item.drugId);
-                if (drug) {
-                    const originalQuantity = drug.quantity;
-                    drug.quantity -= item.quantity;
-                    // Ensure quantity doesn't go below 0
-                    drug.quantity = Math.max(0, drug.quantity);
-                    
-                    // Log the stock adjustment
-                    this.logStockAdjustment({
-                        drugId: drug.id,
-                        drugName: drug.name,
-                        previousQuantity: originalQuantity,
-                        newQuantity: drug.quantity,
-                        adjustment: -item.quantity,
-                        reason: 'sale',
-                        referenceId: tempId,
-                        notes: `Sold ${item.quantity} units`
-                    });
-                }
-            });
-            
-            // Add to local storage
-            this.sales.unshift(newSale);
-            this.saveData('sales', this.sales);
-            this.saveData('drugs', this.drugs);
-            
-            if (this.isOnline) {
-                try {
-                    // If online, try to save to server
-                    // const savedSale = await api.addSale(newSale);
-                    // Update local copy with server data
-                    // this.updateLocalSale(savedSale);
-                    this.showNotification('Sale recorded successfully', 'success');
-                } catch (error) {
-                    // If server save fails, add to offline queue
-                    this.addToOfflineQueue('addSale', newSale);
-                    this.showNotification('Sale recorded locally (offline)', 'info');
-                }
-            } else {
-                // If offline, add to queue
-                this.addToOfflineQueue('addSale', newSale);
-                this.showNotification('Sale recorded locally (offline)', 'info');
+            if (isLowStock && isExpiringSoon) {
+                status = 'Low Stock & Expiring Soon';
+            } else if (isLowStock) {
+                status = 'Low Stock';
+            } else if (isExpiringSoon) {
+                status = 'Expiring Soon';
             }
             
-            // Update UI and log activity
-            this.updateDashboard();
-            this.logActivity('add_sale', `Recorded sale #${tempId} for $${newSale.total || 0}`);
-            
-            return newSale;
-            
-        } catch (error) {
-            console.error('Error recording sale:', error);
-            this.showNotification('Error recording sale: ' + error.message, 'error');
-            throw error;
+            reportContent += `
+                <tr class="${isLowStock || isExpiringSoon ? 'text-danger' : ''}">
+                    <td>${drug.name}</td>
+                    <td>${drug.category}</td>
+                    <td>${drug.quantity}</td>
+                    <td>$${drug.price.toFixed(2)}</td>
+                    <td>$${value.toFixed(2)}</td>
+                    <td>${this.formatDate(drug.expiry)}</td>
+                    <td>${status}</td>
+                </tr>
+            `;
+        });
+        
+        reportContent += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        document.getElementById('reportContent').innerHTML = reportContent;
+        document.getElementById('reportContainer').style.display = 'block';
+    }
+
+    printReport() {
+        const reportContent = document.getElementById('reportContent').innerHTML;
+        const reportTitle = document.getElementById('reportTitle').textContent;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>${reportTitle}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        .inventory-summary { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                        th { background-color: #667eea; color: white; }
+                        .text-danger { color: #dc3545; }
+                        h4 { color: #333; margin-bottom: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${reportTitle}</h1>
+                    <p><strong>Generated on:</strong> ${new Date().toLocaleString()}</p>
+                    <p><strong>Generated by:</strong> ${this.currentUser.username}</p>
+                    ${reportContent}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    // Sales deletion with restock
+    deleteSale(saleId) {
+        const saleIndex = this.sales.findIndex(s => s.id === saleId);
+        if (saleIndex === -1) return;
+
+        const sale = this.sales[saleIndex];
+        if (!confirm(`Delete this sale and restock ${sale.quantity} of ${sale.drugName}?`)) return;
+
+        // Restock
+        const drug = this.drugs.find(d => d.id === sale.drugId);
+        if (drug) {
+            drug.quantity += sale.quantity;
         }
-            this.addToOfflineQueue('addSale', newSale);
-            this.showNotification('Sale recorded locally (offline)', 'info');
-        }
+
+        // Remove sale
+        this.sales.splice(saleIndex, 1);
+        this.saveDataWithSync('sales', this.sales);
+        this.saveDataWithSync('drugs', this.drugs);
+
+        this.renderSales();
+        this.populateSalesDrugs();
+        this.updateDashboard();
+        this.showMessage('Sale deleted and inventory restocked', 'success');
+        this.logAuditEvent('delete_sale', `Deleted sale of ${sale.quantity} units of ${sale.drugName} and restocked inventory`);
+    }
+
+    // Admin Functions
+    exportData() {
+        const data = {
             drugs: this.drugs,
             sales: this.sales,
             users: this.users,

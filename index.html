@@ -16,43 +16,6 @@
     <meta name="apple-mobile-web-app-title" content="PharmaStore">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     
-    <!-- Service Worker Registration -->
-    <script>
-      // Register service worker
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-              console.log('ServiceWorker registration successful');
-            })
-            .catch(err => {
-              console.error('ServiceWorker registration failed: ', err);
-            });
-        });
-      }
-
-      // Track online/offline status
-      function updateOnlineStatus() {
-        const offlineStatus = document.getElementById('offline-status');
-        if (navigator.onLine) {
-          offlineStatus.style.display = 'none';
-          // Try to sync when back online
-          if ('serviceWorker' in navigator && 'SyncManager' in window) {
-            navigator.serviceWorker.ready.then(registration => {
-              registration.sync.register('sync-queue');
-            });
-          }
-        } else {
-          offlineStatus.style.display = 'block';
-        }
-      }
-
-      // Initial check
-      window.addEventListener('load', updateOnlineStatus);
-      window.addEventListener('online', updateOnlineStatus);
-      window.addEventListener('offline', updateOnlineStatus);
-    </script>
-    
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -93,26 +56,6 @@
     </script>
 </head>
 <body>
-    <!-- Forgot Password Modal -->
-    <div id="forgotPasswordModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('forgotPasswordModal')">&times;</span>
-            <h3>Reset Password</h3>
-            <div id="resetPasswordStep1">
-                <p>Enter your email address and we'll send you a link to reset your password.</p>
-                <div class="form-group">
-                    <label for="resetEmail">Email</label>
-                    <input type="email" id="resetEmail" class="form-control" required>
-                </div>
-                <button class="btn btn-primary" onclick="pharmaStore.sendResetLink()">Send Reset Link</button>
-            </div>
-            <div id="resetPasswordStep2" style="display: none;">
-                <p>Please check your email for the password reset link.</p>
-                <p>Didn't receive an email? <a href="javascript:void(0)" onclick="showResetStep(1)">Resend</a></p>
-            </div>
-        </div>
-    </div>
-
     <!-- Login Screen -->
     <div id="loginScreen" class="login-container">
         <div class="login-card">
@@ -141,9 +84,6 @@
                 <button type="submit" class="login-btn">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
-                <div class="forgot-password">
-                    <a href="#" onclick="openModal('forgotPasswordModal'); return false;">Forgot Password?</a>
-                </div>
             </form>
         </div>
     </div>
@@ -157,9 +97,6 @@
                 <h1>PharmaStore Management</h1>
             </div>
             <div class="header-right">
-                <div id="offline-status" class="offline-status" style="display: none;">
-                    <i class="fas fa-wifi-slash"></i> You are currently offline
-                </div>
                 <div class="sync-status">
                     <span id="syncStatus" class="status-indicator offline">
                         <i class="fas fa-wifi"></i> <span>Offline</span>
