@@ -300,6 +300,47 @@ class PharmaStore {
             const user = this.users.find(function(u) {
                 return u.username === username && 
                        u.password === password && 
+                       u.type === userType;
+            });
+
+            if (user) {
+                this.currentUser = user;
+                this.isAdmin = user.type === 'admin';
+                
+                // Show the main app
+                this.showMainApp();
+                
+                // Initialize app data
+                this.updateDashboard();
+                this.populateSalesDrugs();
+                this.renderDrugs();
+                this.renderSales();
+                
+                // Show welcome message
+                loginMessage.textContent = 'Welcome, ' + username + '!';
+                loginMessage.style.color = 'green';
+                loginMessage.style.display = 'block';
+                
+                // Hide message after 3 seconds
+                setTimeout(() => {
+                    loginMessage.style.display = 'none';
+                }, 3000);
+                
+                return true;
+            } else {
+                // Invalid credentials
+                loginMessage.textContent = 'Invalid username or password';
+                loginMessage.style.color = 'red';
+                loginMessage.style.display = 'block';
+                return false;
+            }
+                return false;
+            }
+
+            // Find user in the users array
+            const user = this.users.find(function(u) {
+                return u.username === username && 
+                       u.password === password && 
                        (userType ? u.type === userType : true);
             });
 
