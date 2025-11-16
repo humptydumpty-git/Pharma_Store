@@ -153,7 +153,36 @@ class PharmaStore {
                 e.preventDefault();
                 this.handleStockAdjustment();
             });
-        }
+        }        // ...existing code...
+            <!-- Login Screen -->
+            <div id="loginScreen" class="login-container">
+                <div class="login-card">
+                    <form id="loginForm" class="login-form">
+                        <h2>Sign in</h2>
+        
+                        <label for="username">Username</label>
+                        <input id="username" name="username" type="text" autocomplete="username" required>
+        
+                        <label for="password">Password</label>
+                        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        
+                        <!-- Optional: user type (admin/user) -->
+                        <label for="userType">User Type (optional)</label>
+                        <select id="userType" name="userType">
+                            <option value="">Any</option>
+                            <option value="admin">Admin</option>
+                            <option value="user">User</option>
+                        </select>
+        
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Login</button>
+                        </div>
+        
+                        <div id="loginMessage" class="form-message" aria-live="polite"></div>
+                    </form>
+                </div>
+            </div>
+        // ...existing code...
 
         // Stock adjustment drug selection (guarded)
         const adjustmentDrugSelect = document.getElementById('adjustmentDrug');
