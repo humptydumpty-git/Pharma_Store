@@ -108,42 +108,44 @@
             </div>
         </header>
 
-        <!-- Navigation -->
-        <nav class="nav-menu" id="navMenu">
-                <button class="nav-btn active" data-section="dashboard" data-key="navDashboard">
-                <i class="fas fa-tachometer-alt"></i> Dashboard
-            </button>
-            <button class="nav-btn" data-section="drugs" data-key="navDrugs">
-                <i class="fas fa-pills"></i> Manage Drugs
-            </button>
-            <button class="nav-btn" data-section="sales" data-key="navSales">
-                <i class="fas fa-shopping-cart"></i> Sales
-            </button>
-            <button class="nav-btn" data-section="reports" data-key="navReports">
-                <i class="fas fa-chart-bar"></i> Reports
-            </button>
-            <button class="nav-btn" data-section="analytics" data-key="navAnalytics">
-                <i class="fas fa-chart-line"></i> Analytics
-            </button>
-            <button class="nav-btn" data-section="stockAdjustment" data-key="navStock">
-                <i class="fas fa-adjust"></i> Stock Adjustment
-            </button>
-            <button class="nav-btn" data-section="pettyCash" data-key="navPettyCash">
-                <i class="fas fa-wallet"></i> Petty Cash
-            </button>
-            <button class="nav-btn admin-only" data-section="payroll" style="display: none;">
-                <i class="fas fa-money-check-alt"></i> Payroll
-            </button>
-            <button class="nav-btn admin-only" data-section="audit" style="display: none;">
-                <i class="fas fa-history"></i> Audit Trail
-            </button>
-            <button class="nav-btn admin-only" data-section="admin" style="display: none;">
-                <i class="fas fa-cog"></i> Admin Panel
-            </button>
-        </nav>
+        <div class="app-body">
+            <aside class="sidebar" aria-label="Primary navigation">
+                <nav class="nav-menu" id="navMenu">
+                    <button class="nav-btn active" data-section="dashboard" data-key="navDashboard">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </button>
+                    <button class="nav-btn" data-section="drugs" data-key="navDrugs">
+                        <i class="fas fa-pills"></i> Manage Drugs
+                    </button>
+                    <button class="nav-btn" data-section="sales" data-key="navSales">
+                        <i class="fas fa-shopping-cart"></i> Sales
+                    </button>
+                    <button class="nav-btn" data-section="reports" data-key="navReports">
+                        <i class="fas fa-chart-bar"></i> Reports
+                    </button>
+                    <button class="nav-btn" data-section="analytics" data-key="navAnalytics">
+                        <i class="fas fa-chart-line"></i> Analytics
+                    </button>
+                    <button class="nav-btn" data-section="stockAdjustment" data-key="navStock">
+                        <i class="fas fa-adjust"></i> Stock Adjustment
+                    </button>
+                    <button class="nav-btn" data-section="pettyCash" data-key="navPettyCash">
+                        <i class="fas fa-wallet"></i> Petty Cash
+                    </button>
+                    <button class="nav-btn admin-only" data-section="payroll" style="display: none;">
+                        <i class="fas fa-money-check-alt"></i> Payroll
+                    </button>
+                    <button class="nav-btn admin-only" data-section="audit" style="display: none;">
+                        <i class="fas fa-history"></i> Audit Trail
+                    </button>
+                    <button class="nav-btn admin-only" data-section="admin" style="display: none;">
+                        <i class="fas fa-cog"></i> Admin Panel
+                    </button>
+                </nav>
+            </aside>
 
-        <!-- Main Content -->
-        <main class="main-content">
+            <!-- Main Content -->
+            <main class="main-content">
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
                 <h2 data-key="dashboardTitle">Dashboard</h2>
@@ -1059,6 +1061,7 @@
                 </div>
             </section>
         </main>
+        </div>
     </div>
 
     <!-- Hidden file input for data import -->

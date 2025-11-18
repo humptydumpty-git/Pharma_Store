@@ -299,6 +299,8 @@ class PharmaStore {
         document.querySelectorAll('.admin-only').forEach(el => {
             el.style.display = this.isAdmin ? '' : 'none';
         });
+
+        this.showSection('dashboard');
     }
 
     // Setup event listeners
