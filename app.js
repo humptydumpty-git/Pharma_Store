@@ -10,9 +10,14 @@ class PharmaStore {
         this.pettyCashBalance = this.loadData('pettyCashBalance') || 0;
         this.employees = this.loadData('employees') || [];
         this.salaryPayments = this.loadData('salaryPayments') || [];
-        this.salesTaxRate = 0.075; // 7.5% tax used for live sales calculations
+        this.salesTaxRatePercent = this.loadData('salesTaxRatePercent') ?? 7.5;
+        this.discountRatePercent = this.loadData('discountRatePercent') ?? 0;
+        this.cashReceived = 0;
+        this.salesTaxRate = this.salesTaxRatePercent / 100;
         this.userCameraStream = null;
         this.globalErrorHandlersRegistered = false;
+        this.maxPhotoSizeBytes = 500 * 1024; // 500KB
+        this.recentErrors = [];
         
         // Load users or initialize with default users
         const loadedUsers = this.loadData('users');
@@ -45,6 +50,7 @@ class PharmaStore {
         
         this.setupGlobalErrorHandlers();
         this.init();
+        this.ensureLegacyPasswordHashes();
     }
 
     // Data handling methods
@@ -64,12 +70,56 @@ class PharmaStore {
             return true;
         } catch (e) {
             console.error('Error saving data:', e);
+            if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+                this.showMessage('Storage limit reached. Please clear old data before saving new records.', 'error');
+                this.logAuditEvent('storage_quota', `Failed to save ${key}: quota exceeded`);
+            }
             return false;
         }
     }
 
+    async hashString(value) {
+        if (!value) return '';
+        const encoder = new TextEncoder();
+        const data = encoder.encode(value);
+        try {
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (error) {
+            console.warn('Secure hashing unavailable, falling back to simple hash.', error);
+            let hash = 0;
+            for (let i = 0; i < value.length; i++) {
+                hash = ((hash << 5) - hash) + value.charCodeAt(i);
+                hash |= 0;
+            }
+            return hash.toString(16);
+        }
+    }
+
+    async passwordMatches(user, plainPassword, hashedInput) {
+        if (user.passwordHash) {
+            return user.passwordHash === hashedInput;
+        }
+        return user.password === plainPassword;
+    }
+
+    async ensureLegacyPasswordHashes() {
+        if (!Array.isArray(this.users)) return;
+        let needsSave = false;
+        for (const user of this.users) {
+            if (user.password && !user.passwordHash) {
+                user.passwordHash = await this.hashString(user.password);
+                delete user.password;
+                needsSave = true;
+            }
+        }
+        if (needsSave) {
+            this.saveData('users', this.users);
+        }
+    }
+
     // Authentication
-    handleLogin() {
+    async handleLogin() {
         try {
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
@@ -93,11 +143,21 @@ class PharmaStore {
 
             // Find user in the users array
             const user = this.users.find(u => 
-                u.username === username && 
-                u.password === password
+                u.username === username
             );
 
             if (user) {
+                const hashedInput = await this.hashString(password);
+                const passwordMatches = await this.passwordMatches(user, password, hashedInput);
+
+                if (!passwordMatches) {
+                    loginMessage.textContent = 'Invalid username or password';
+                    loginMessage.style.color = 'red';
+                    loginMessage.style.display = 'block';
+                    this.logAuditEvent('login_failed', 'Failed login attempt for username: ' + username);
+                    return false;
+                }
+
                 this.currentUser = user;
                 this.isAdmin = user.type === 'admin';
                 
@@ -176,6 +236,7 @@ class PharmaStore {
         this.setupOnlineOfflineListeners();
         this.updateSyncStatus();
         this.setupInactivityTimer();
+        this.renderErrorLogTable();
     }
 
     setupGlobalErrorHandlers() {
@@ -184,14 +245,41 @@ class PharmaStore {
             console.error('Global error captured', event?.error || event);
             this.showMessage('An unexpected error occurred. Please try again.', 'error');
             this.logAuditEvent('global_error', event?.message || 'Unexpected error');
+            this.recordGlobalError('global_error', event?.message || 'Unexpected error');
         });
 
         window.addEventListener('unhandledrejection', (event) => {
             console.error('Unhandled promise rejection', event?.reason);
             this.showMessage('Something went wrong while processing your request.', 'error');
             this.logAuditEvent('promise_rejection', event?.reason?.message || 'Unhandled rejection');
+            this.recordGlobalError('promise_rejection', event?.reason?.message || 'Unhandled rejection');
         });
         this.globalErrorHandlersRegistered = true;
+    }
+
+    recordGlobalError(action, details) {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            action,
+            details
+        };
+        this.recentErrors = [entry, ...(this.recentErrors || [])].slice(0, 10);
+        this.renderErrorLogTable();
+    }
+
+    renderErrorLogTable() {
+        const tbody = document.getElementById('errorLogTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        (this.recentErrors || []).forEach(err => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${this.formatDate(err.timestamp)} ${new Date(err.timestamp).toLocaleTimeString()}</td>
+                <td>${err.action}</td>
+                <td>${err.details}</td>
+            `;
+            tbody.appendChild(row);
+        });
     }
 
     // Show main application
@@ -218,9 +306,9 @@ class PharmaStore {
         // Login form
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                this.handleLogin();
+                await this.handleLogin();
             });
         }
 
@@ -261,18 +349,18 @@ class PharmaStore {
         if (cancelChangePassword) cancelChangePassword.addEventListener('click', () => this.closeChangePassword());
         const changePasswordForm = document.getElementById('changePasswordForm');
         if (changePasswordForm) {
-            changePasswordForm.addEventListener('submit', (e) => {
+            changePasswordForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                this.handleChangePassword();
+                await this.handleChangePassword();
             });
         }
 
         // Admin add user
         const addUserForm = document.getElementById('addUserForm');
         if (addUserForm) {
-            addUserForm.addEventListener('submit', (e) => {
+            addUserForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                this.handleAddUser();
+                await this.handleAddUser();
             });
         }
 
@@ -360,6 +448,8 @@ class PharmaStore {
 
         window.addEventListener('beforeunload', () => this.stopUserCamera());
         this.setCameraButtonsState({ capture: false, clear: false });
+
+        this.setupSalesControls();
     }
 
     // Reset inactivity timer
@@ -584,6 +674,50 @@ class PharmaStore {
     // Setup inactivity timer
     setupInactivityTimer() {
         this.resetInactivityTimer();
+    }
+
+    setupSalesControls() {
+        const taxInput = document.getElementById('taxRateInput');
+        if (taxInput) {
+            taxInput.value = this.salesTaxRatePercent.toString();
+            taxInput.addEventListener('input', () => {
+                const value = Math.max(0, Number(taxInput.value) || 0);
+                this.salesTaxRatePercent = value;
+                this.salesTaxRate = value / 100;
+                this.saveData('salesTaxRatePercent', this.salesTaxRatePercent);
+                this.updateTaxLabel();
+                this.updateTotals();
+            });
+        }
+
+        const discountInput = document.getElementById('discountRateInput');
+        if (discountInput) {
+            discountInput.value = this.discountRatePercent.toString();
+            discountInput.addEventListener('input', () => {
+                const value = Math.min(Math.max(Number(discountInput.value) || 0, 0), 100);
+                this.discountRatePercent = value;
+                this.saveData('discountRatePercent', this.discountRatePercent);
+                this.updateTotals();
+            });
+        }
+
+        const cashInput = document.getElementById('cashReceivedInput');
+        if (cashInput) {
+            cashInput.value = this.cashReceived ? this.cashReceived.toString() : '';
+            cashInput.addEventListener('input', () => {
+                this.cashReceived = Math.max(0, Number(cashInput.value) || 0);
+                this.updateTotals();
+            });
+        }
+
+        this.updateTaxLabel();
+    }
+
+    updateTaxLabel() {
+        const label = document.getElementById('saleTaxLabel');
+        if (label) {
+            label.textContent = `Tax (${this.salesTaxRatePercent.toFixed(1)}%)`;
+        }
     }
 
     // Get translations
@@ -819,25 +953,52 @@ class PharmaStore {
 
     updateTotals() {
         const rows = Array.from(document.querySelectorAll('#saleItemsBody tr'));
-        let subtotal = 0;
-        let unitCount = 0;
-        rows.forEach(r => {
-            subtotal += Number(r.querySelector('.sale-line-total')?.textContent) || 0;
-            unitCount += Number(r.querySelector('.sale-qty')?.value) || 0;
-        });
-        const tax = subtotal * this.salesTaxRate;
-        const grandTotal = subtotal + tax;
+        const items = rows.map(r => ({
+            total: Number(r.querySelector('.sale-line-total')?.textContent) || 0,
+            quantity: Number(r.querySelector('.sale-qty')?.value) || 0
+        }));
+
+        const calculator = window.PharmaCalculations?.calculateSaleSummary;
+        const summary = calculator
+            ? calculator({
+                items,
+                taxRate: this.salesTaxRatePercent,
+                discountRate: this.discountRatePercent,
+                cashReceived: this.cashReceived
+            })
+            : this.fallbackSaleSummary(items);
 
         const subtotalEl = document.getElementById('saleSubtotal');
-        if (subtotalEl) subtotalEl.textContent = subtotal.toFixed(2);
+        if (subtotalEl) subtotalEl.textContent = summary.subtotal.toFixed(2);
         const taxEl = document.getElementById('saleTax');
-        if (taxEl) taxEl.textContent = tax.toFixed(2);
+        if (taxEl) taxEl.textContent = summary.taxAmount.toFixed(2);
+        const discountEl = document.getElementById('saleDiscount');
+        if (discountEl) discountEl.textContent = summary.discountAmount.toFixed(2);
         const grandTotalEl = document.getElementById('saleGrandTotal');
-        if (grandTotalEl) grandTotalEl.textContent = grandTotal.toFixed(2);
+        if (grandTotalEl) grandTotalEl.textContent = summary.grandTotal.toFixed(2);
+        const changeEl = document.getElementById('saleChangeDue');
+        if (changeEl) changeEl.textContent = summary.changeDue.toFixed(2);
         const itemCountEl = document.getElementById('saleItemCount');
         if (itemCountEl) itemCountEl.textContent = rows.length.toString();
         const unitCountEl = document.getElementById('saleUnitCount');
-        if (unitCountEl) unitCountEl.textContent = unitCount.toString();
+        if (unitCountEl) unitCountEl.textContent = summary.totalUnits.toString();
+    }
+
+    fallbackSaleSummary(items) {
+        const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
+        const totalUnits = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const taxAmount = subtotal * this.salesTaxRate;
+        const discountAmount = subtotal * (this.discountRatePercent / 100);
+        const grandTotal = subtotal + taxAmount - discountAmount;
+        const changeDue = this.cashReceived - grandTotal;
+        return {
+            subtotal,
+            taxAmount,
+            discountAmount,
+            grandTotal,
+            changeDue,
+            totalUnits
+        };
     }
 
     async processMultiSale() {
@@ -878,6 +1039,11 @@ class PharmaStore {
             return;
         }
 
+        const validation = window.PharmaValidation?.validateSaleRequest?.(this.drugs, items);
+        if (validation && !validation.ok) {
+            this.showMessage(validation.issues[0], 'error');
+            return;
+        } else if (!validation) {
         for (const it of items) {
             if (!it.drugId) {
                 this.showMessage('Please select a drug for all items', 'error');
@@ -891,6 +1057,7 @@ class PharmaStore {
             if ((Number(drug.quantity) || 0) < Number(it.qty || 0)) {
                 this.showMessage(`Insufficient stock for ${drug.name}`, 'error');
                 return;
+                }
             }
         }
 
@@ -1112,11 +1279,155 @@ class PharmaStore {
     }
 
     generateReport() {
-        this.showMessage('Report generation - to be implemented', 'info');
+        const type = document.getElementById('reportType')?.value || 'daily';
+        const dateStr = document.getElementById('reportDate')?.value || new Date().toISOString().split('T')[0];
+        const { start, end, label } = this.getReportRange(type, dateStr);
+        const reportContainer = document.getElementById('reportContainer');
+        const reportTitle = document.getElementById('reportTitle');
+        const reportContent = document.getElementById('reportContent');
+
+        const sales = type === 'inventory' ? [] : (this.sales || []).filter(sale => {
+            if (!sale.date) return false;
+            const saleDate = new Date(`${sale.date}T${sale.time || '00:00:00'}`);
+            return saleDate >= start && saleDate <= end;
+        });
+
+        const totalSales = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
+        const totalItems = sales.reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0);
+
+        document.getElementById('totalSalesAmount').textContent = `$${totalSales.toFixed(2)}`;
+        document.getElementById('totalItemsSold').textContent = type === 'inventory' ? this.drugs.length : totalItems;
+        document.getElementById('totalTransactions').textContent = type === 'inventory' ? this.drugs.length : sales.length;
+
+        if (reportTitle) {
+            reportTitle.textContent = `${label} Report`;
+        }
+        if (reportContainer) {
+            reportContainer.style.display = 'block';
+        }
+
+        if (reportContent) {
+            if (type === 'inventory') {
+                const rows = (this.drugs || []).map(drug => `
+                    <tr>
+                        <td>${drug.name || ''}</td>
+                        <td>${drug.category || ''}</td>
+                        <td>${drug.quantity || 0}</td>
+                        <td>$${(drug.price || 0).toFixed(2)}</td>
+                        <td>${drug.expiry || 'N/A'}</td>
+                        <td>${drug.supplier || 'N/A'}</td>
+                    </tr>
+                `).join('');
+                reportContent.innerHTML = `
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Expiry</th>
+                                <th>Supplier</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+            } else if (!sales.length) {
+                reportContent.innerHTML = `<p class="section-description">No sales recorded for the selected period.</p>`;
+            } else {
+                const rows = sales.map(sale => `
+                    <tr>
+                        <td>${sale.date || ''}</td>
+                        <td>${sale.time || ''}</td>
+                        <td>${sale.drugName || ''}</td>
+                        <td>${sale.quantity || 0}</td>
+                        <td>$${(sale.price || 0).toFixed(2)}</td>
+                        <td>$${(sale.total || 0).toFixed(2)}</td>
+                        <td>${sale.customerName || 'Walk-in Customer'}</td>
+                    </tr>
+                `).join('');
+                reportContent.innerHTML = `
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Drug</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                                <th>Customer</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+            }
+        }
+
+        this.showMessage('Report generated successfully', 'success');
+        this.logAuditEvent('generate_report', `${label} report generated`);
+    }
+
+    getReportRange(type, dateStr) {
+        const baseDate = dateStr ? new Date(dateStr) : new Date();
+        const start = new Date(baseDate);
+        const end = new Date(baseDate);
+        let label = 'Daily';
+
+        switch (type) {
+            case 'weekly':
+                {
+                    const day = start.getDay();
+                    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+                    start.setDate(diff);
+                    end.setDate(start.getDate() + 6);
+                    label = 'Weekly';
+                }
+                break;
+            case 'monthly':
+                start.setDate(1);
+                end.setMonth(start.getMonth() + 1);
+                end.setDate(0);
+                label = 'Monthly';
+                break;
+            case 'yearly':
+                start.setMonth(0, 1);
+                end.setMonth(11, 31);
+                label = 'Yearly';
+                break;
+            case 'inventory':
+                start.setFullYear(1970, 0, 1);
+                end.setFullYear(3000, 0, 1);
+                label = 'Inventory';
+                break;
+            default:
+                label = 'Daily';
+        }
+
+        return { start, end, label };
     }
 
     printReport() {
-        window.print();
+        const reportContainer = document.getElementById('reportContainer');
+        if (!reportContainer || reportContainer.style.display === 'none') {
+            this.showMessage('Generate a report before printing.', 'error');
+            return;
+        }
+        const printWindow = window.open('', '_blank', 'width=900,height=700');
+        const title = document.getElementById('reportTitle')?.textContent || 'Report';
+        printWindow.document.write(`<html><head><title>${title}</title>`);
+        printWindow.document.write('<link rel="stylesheet" href="style.css">');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(reportContainer.outerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 300);
     }
 
     printReceipt() {
@@ -1259,7 +1570,7 @@ class PharmaStore {
         this.renderAuditTrail();
     }
 
-    handleAddUser() {
+    async handleAddUser() {
         if (!this.isAdmin) {
             this.showMessage('Only admins can add users', 'error');
             return;
@@ -1280,9 +1591,11 @@ class PharmaStore {
             return;
         }
 
+        const passwordHash = await this.hashString(password);
+
         const newUser = {
             username: username,
-            password: password,
+            passwordHash: passwordHash,
             type: userType,
             createdAt: new Date().toISOString(),
             photo: photoData
@@ -1355,6 +1668,11 @@ class PharmaStore {
         context.drawImage(video, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
+        if (!this.isPhotoWithinLimit(dataUrl)) {
+            this.showMessage('Captured photo is too large. Please move the camera closer and try again.', 'error');
+            return;
+        }
+
         const hiddenInput = document.getElementById('newUserPhoto');
         if (hiddenInput) {
             hiddenInput.value = dataUrl;
@@ -1366,7 +1684,8 @@ class PharmaStore {
             preview.classList.add('has-photo');
             preview.style.display = 'block';
         }
-        this.setCameraButtonsState({ capture: true, clear: true });
+        this.stopUserCamera();
+        this.setCameraButtonsState({ capture: false, clear: true });
         this.showMessage('User photo captured successfully.', 'success');
     }
 
@@ -1388,6 +1707,18 @@ class PharmaStore {
             this.stopUserCamera();
             this.setCameraButtonsState({ capture: false, clear: false });
         }
+    }
+
+    isPhotoWithinLimit(dataUrl) {
+        const estimator = window.PharmaValidation?.estimateBase64Size;
+        const size = estimator ? estimator(dataUrl) : this.estimateBase64SizeFallback(dataUrl);
+        return size <= this.maxPhotoSizeBytes;
+    }
+
+    estimateBase64SizeFallback(dataUrl) {
+        if (!dataUrl.includes(',')) return 0;
+        const base64 = dataUrl.split(',')[1];
+        return Math.ceil((base64.length * 3) / 4);
     }
 
     stopUserCamera() {
@@ -1461,7 +1792,7 @@ class PharmaStore {
         if (form) form.reset();
     }
 
-    handleChangePassword() {
+    async handleChangePassword() {
         const currentPassword = document.getElementById('currentPassword')?.value;
         const newPassword1 = document.getElementById('newPassword1')?.value;
         const newPassword2 = document.getElementById('newPassword2')?.value;
@@ -1476,15 +1807,25 @@ class PharmaStore {
             return;
         }
 
-        if (this.currentUser?.password !== currentPassword) {
+        const hashedCurrentInput = await this.hashString(currentPassword);
+        const hasStoredHash = !!this.currentUser?.passwordHash;
+        const storedHash = this.currentUser?.passwordHash;
+        const currentMatches = hasStoredHash
+            ? storedHash === hashedCurrentInput
+            : this.currentUser?.password === currentPassword;
+
+        if (!currentMatches) {
             this.showMessage('Current password is incorrect', 'error');
             return;
         }
 
-        this.currentUser.password = newPassword1;
+        const newPasswordHash = await this.hashString(newPassword1);
+        this.currentUser.passwordHash = newPasswordHash;
+        delete this.currentUser.password;
         const userIndex = this.users.findIndex(u => u.username === this.currentUser.username);
         if (userIndex !== -1) {
-            this.users[userIndex].password = newPassword1;
+            this.users[userIndex].passwordHash = newPasswordHash;
+            delete this.users[userIndex].password;
             this.saveData('users', this.users);
             this.showMessage('Password changed successfully', 'success');
             this.logAuditEvent('change_password', 'Password changed');

@@ -944,6 +944,17 @@ tr:hover {
     color: var(--text-primary);
 }
 
+.sale-finance-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.sale-finance-panel .form-group input {
+    font-weight: 600;
+}
+
 .summary-chip.emphasis {
     background: linear-gradient(135deg, #ff9a9e, #fad0c4);
     color: #0f172a;
@@ -951,6 +962,12 @@ tr:hover {
 
 .summary-chip.emphasis strong {
     color: #0f172a;
+}
+
+.error-log-panel {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
 }
 
 /* ===== MODAL ===== */
@@ -1330,6 +1347,25 @@ tr:hover {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid var(--border-color);
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-table th,
+.report-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+}
+
+.report-table th {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
 }
 
 /* ===== LOADING ANIMATION ===== */
