@@ -6,21 +6,19 @@ class UserManager {
 
     // Handle login form submission
     async handleLogin() {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const userType = document.getElementById('userType').value;
+        const username = document.getElementById('username')?.value.trim() || '';
+        const password = document.getElementById('password')?.value || '';
         
         // Simple validation
-        if (!username || !password || !userType) {
+        if (!username || !password) {
             this.pharmaStore.showMessage('Please fill in all fields', 'error');
             return;
         }
         
         try {
-            // Find user by username and type
+            // Find user by username
             const user = this.pharmaStore.users.find(u => 
-                u.username.toLowerCase() === username.toLowerCase() && 
-                u.type === userType
+                u.username.toLowerCase() === username.toLowerCase()
             );
             
             // Check if user exists and is active

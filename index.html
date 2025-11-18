@@ -50,7 +50,7 @@
                     <div class="login-logo" aria-hidden="true"><i class="fas fa-pills"></i></div>
                     <div>
                         <h2 id="loginTitle">PharmaStore Sign in</h2>
-                        <div class="login-hint">Secure access to inventory and sales</div>
+                        <div class="login-hint">Secure access to inventory and sales &mdash; your role is detected automatically.</div>
                     </div>
                 </div>
 
@@ -59,13 +59,6 @@
 
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" autocomplete="current-password" required aria-required="true" placeholder="Enter password">
-
-                <label for="userType">User Type (optional)</label>
-                <select id="userType" name="userType" aria-label="User Type">
-                    <option value="">Any</option>
-                    <option value="admin">Admin</option>
-                    <option value="user">User</option>
-                </select>
 
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">Login</button>
@@ -322,13 +315,33 @@
                                 </div>
                             </div>
                             
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0;">
+                            <div class="sale-control-bar">
                                 <button type="button" id="addSaleItemBtn" class="btn-secondary">
                                     <i class="fas fa-plus"></i> Add Item
                                 </button>
 
-                                <div class="sale-totals">
-                                    <span style="font-size: 1.2rem; font-weight: 600;">Subtotal: $<span id="saleSubtotal">0.00</span></span>
+                                <div class="live-total-pill">
+                                    <span>Subtotal</span>
+                                    <strong>$<span id="saleSubtotal">0.00</span></strong>
+                                </div>
+                            </div>
+
+                            <div class="sale-summary-panel" aria-live="polite">
+                                <div class="summary-chip">
+                                    <span>Line Items</span>
+                                    <strong id="saleItemCount">0</strong>
+                                </div>
+                                <div class="summary-chip">
+                                    <span>Total Units</span>
+                                    <strong id="saleUnitCount">0</strong>
+                                </div>
+                                <div class="summary-chip">
+                                    <span>Tax (7.5%)</span>
+                                    <strong>$<span id="saleTax">0.00</span></strong>
+                                </div>
+                                <div class="summary-chip emphasis">
+                                    <span>Grand Total</span>
+                                    <strong>$<span id="saleGrandTotal">0.00</span></strong>
                                 </div>
                             </div>
 
@@ -597,6 +610,29 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label>User Photo (optional)</label>
+                                <div class="camera-capture" id="userCameraContainer">
+                                    <video id="userCameraPreview" autoplay playsinline muted></video>
+                                    <canvas id="userPhotoCanvas" aria-hidden="true"></canvas>
+                                    <img id="userPhotoPreview" alt="User photo preview" src="" />
+                                    <div class="camera-actions">
+                                        <button type="button" class="btn-secondary" id="startCameraBtn">
+                                            <i class="fas fa-camera"></i> Start Camera
+                                        </button>
+                                        <button type="button" class="btn-primary" id="capturePhotoBtn" disabled>
+                                            <i class="fas fa-circle-dot"></i> Capture Photo
+                                        </button>
+                                        <button type="button" class="btn-secondary" id="clearPhotoBtn" disabled>
+                                            <i class="fas fa-trash"></i> Clear Photo
+                                        </button>
+                                    </div>
+                                    <input type="hidden" id="newUserPhoto">
+                                </div>
+                                <p class="camera-hint">Capture staff photos directly from this device for quick identification.</p>
+                            </div>
+                        </div>
                         <div class="form-actions">
                             <button type="submit" class="btn-primary"><i class="fas fa-user-plus"></i> Add User</button>
                             <button type="button" class="btn-secondary" id="cancelEditUser" onclick="pharmaStore.cancelEditUser()" style="display: none;">
@@ -611,6 +647,7 @@
                                     <th>Username</th>
                                     <th>Role</th>
                                     <th>Created</th>
+                                    <th>Photo</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>

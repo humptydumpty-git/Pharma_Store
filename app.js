@@ -10,6 +10,9 @@ class PharmaStore {
         this.pettyCashBalance = this.loadData('pettyCashBalance') || 0;
         this.employees = this.loadData('employees') || [];
         this.salaryPayments = this.loadData('salaryPayments') || [];
+        this.salesTaxRate = 0.075; // 7.5% tax used for live sales calculations
+        this.userCameraStream = null;
+        this.globalErrorHandlersRegistered = false;
         
         // Load users or initialize with default users
         const loadedUsers = this.loadData('users');
@@ -17,8 +20,8 @@ class PharmaStore {
             this.users = loadedUsers;
         } else {
             this.users = [
-                { username: 'admin', password: 'password123', type: 'admin', createdAt: new Date().toISOString() },
-                { username: 'user', password: 'user123', type: 'user', createdAt: new Date().toISOString() }
+                { username: 'admin', password: 'password123', type: 'admin', createdAt: new Date().toISOString(), photo: '' },
+                { username: 'user', password: 'user123', type: 'user', createdAt: new Date().toISOString(), photo: '' }
             ];
             this.saveData('users', this.users);
         }
@@ -40,6 +43,7 @@ class PharmaStore {
         this.inactivityTimeout = 60 * 1000; // 1 minute in milliseconds
         this.warningTime = 50 * 1000; // Show warning at 50 seconds
         
+        this.setupGlobalErrorHandlers();
         this.init();
     }
 
@@ -69,17 +73,15 @@ class PharmaStore {
         try {
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
-            const userTypeSelect = document.getElementById('userType');
             const loginMessage = document.getElementById('loginMessage');
 
-            if (!usernameInput || !passwordInput || !userTypeSelect || !loginMessage) {
+            if (!usernameInput || !passwordInput || !loginMessage) {
                 console.error('Required login elements not found');
                 return false;
             }
 
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
-            const userType = userTypeSelect.value;
 
             // Basic validation
             if (!username || !password) {
@@ -89,11 +91,10 @@ class PharmaStore {
                 return false;
             }
 
-            // Find user in the users array (userType is optional)
+            // Find user in the users array
             const user = this.users.find(u => 
                 u.username === username && 
-                u.password === password && 
-                (userType === '' || u.type === userType)
+                u.password === password
             );
 
             if (user) {
@@ -175,6 +176,22 @@ class PharmaStore {
         this.setupOnlineOfflineListeners();
         this.updateSyncStatus();
         this.setupInactivityTimer();
+    }
+
+    setupGlobalErrorHandlers() {
+        if (this.globalErrorHandlersRegistered) return;
+        window.addEventListener('error', (event) => {
+            console.error('Global error captured', event?.error || event);
+            this.showMessage('An unexpected error occurred. Please try again.', 'error');
+            this.logAuditEvent('global_error', event?.message || 'Unexpected error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection', event?.reason);
+            this.showMessage('Something went wrong while processing your request.', 'error');
+            this.logAuditEvent('promise_rejection', event?.reason?.message || 'Unhandled rejection');
+        });
+        this.globalErrorHandlersRegistered = true;
     }
 
     // Show main application
@@ -259,6 +276,10 @@ class PharmaStore {
             });
         }
 
+        document.getElementById('startCameraBtn')?.addEventListener('click', () => this.startUserCamera());
+        document.getElementById('capturePhotoBtn')?.addEventListener('click', () => this.captureUserPhoto());
+        document.getElementById('clearPhotoBtn')?.addEventListener('click', () => this.clearUserPhoto({ preserveStream: true }));
+
         // Stock adjustment form
         const stockAdjustmentForm = document.getElementById('stockAdjustmentForm');
         if (stockAdjustmentForm) {
@@ -336,6 +357,9 @@ class PharmaStore {
         document.addEventListener('click', () => this.resetInactivityTimer());
         document.addEventListener('keypress', () => this.resetInactivityTimer());
         document.addEventListener('mousemove', () => this.resetInactivityTimer());
+
+        window.addEventListener('beforeunload', () => this.stopUserCamera());
+        this.setCameraButtonsState({ capture: false, clear: false });
     }
 
     // Reset inactivity timer
@@ -761,6 +785,7 @@ class PharmaStore {
             <td><button type="button" class="remove-sale-item btn-secondary">Remove</button></td>
         `;
         tbody.appendChild(tr);
+        this.updateTotals();
 
         const select = tr.querySelector('.sale-drug-select');
         const qty = tr.querySelector('.sale-qty');
@@ -795,11 +820,24 @@ class PharmaStore {
     updateTotals() {
         const rows = Array.from(document.querySelectorAll('#saleItemsBody tr'));
         let subtotal = 0;
+        let unitCount = 0;
         rows.forEach(r => {
             subtotal += Number(r.querySelector('.sale-line-total')?.textContent) || 0;
+            unitCount += Number(r.querySelector('.sale-qty')?.value) || 0;
         });
-        const el = document.getElementById('saleSubtotal');
-        if (el) el.textContent = subtotal.toFixed(2);
+        const tax = subtotal * this.salesTaxRate;
+        const grandTotal = subtotal + tax;
+
+        const subtotalEl = document.getElementById('saleSubtotal');
+        if (subtotalEl) subtotalEl.textContent = subtotal.toFixed(2);
+        const taxEl = document.getElementById('saleTax');
+        if (taxEl) taxEl.textContent = tax.toFixed(2);
+        const grandTotalEl = document.getElementById('saleGrandTotal');
+        if (grandTotalEl) grandTotalEl.textContent = grandTotal.toFixed(2);
+        const itemCountEl = document.getElementById('saleItemCount');
+        if (itemCountEl) itemCountEl.textContent = rows.length.toString();
+        const unitCountEl = document.getElementById('saleUnitCount');
+        if (unitCountEl) unitCountEl.textContent = unitCount.toString();
     }
 
     async processMultiSale() {
@@ -1230,6 +1268,7 @@ class PharmaStore {
         const username = document.getElementById('newUsername')?.value.trim();
         const password = document.getElementById('newPassword')?.value;
         const userType = document.getElementById('newUserType')?.value;
+        const photoData = document.getElementById('newUserPhoto')?.value || '';
 
         if (!username || !password || !userType) {
             this.showMessage('Please fill in all fields', 'error');
@@ -1245,7 +1284,8 @@ class PharmaStore {
             username: username,
             password: password,
             type: userType,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            photo: photoData
         };
 
         this.users.push(newUser);
@@ -1256,6 +1296,118 @@ class PharmaStore {
 
         const form = document.getElementById('addUserForm');
         if (form) form.reset();
+        this.clearUserPhoto();
+    }
+
+    async startUserCamera() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            this.showMessage('Camera access is not supported on this device.', 'error');
+            return;
+        }
+
+        try {
+            if (this.userCameraStream) {
+                this.stopUserCamera();
+            }
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            this.userCameraStream = stream;
+            const video = document.getElementById('userCameraPreview');
+            if (video) {
+                video.srcObject = stream;
+                video.style.display = 'block';
+                await video.play().catch(() => {});
+            }
+            const preview = document.getElementById('userPhotoPreview');
+            if (preview) {
+                preview.classList.remove('has-photo');
+                preview.style.display = 'none';
+                preview.src = '';
+            }
+            const hiddenInput = document.getElementById('newUserPhoto');
+            if (hiddenInput) hiddenInput.value = '';
+            this.setCameraButtonsState({ capture: true, clear: false });
+            this.showMessage('Camera ready. Capture the user photo when ready.', 'info');
+        } catch (error) {
+            console.error('Camera access error:', error);
+            this.showMessage('Unable to access camera: ' + error.message, 'error');
+            this.logAuditEvent('camera_error', error.message || 'Camera unavailable');
+            this.setCameraButtonsState({ capture: false, clear: false });
+        }
+    }
+
+    captureUserPhoto() {
+        if (!this.userCameraStream) {
+            this.showMessage('Start the camera before capturing a photo.', 'error');
+            return;
+        }
+        const video = document.getElementById('userCameraPreview');
+        const canvas = document.getElementById('userPhotoCanvas');
+        if (!video || !canvas) {
+            this.showMessage('Camera preview unavailable.', 'error');
+            return;
+        }
+
+        const context = canvas.getContext('2d');
+        const width = video.videoWidth || 640;
+        const height = video.videoHeight || 480;
+        canvas.width = width;
+        canvas.height = height;
+        context.drawImage(video, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+        const hiddenInput = document.getElementById('newUserPhoto');
+        if (hiddenInput) {
+            hiddenInput.value = dataUrl;
+        }
+
+        const preview = document.getElementById('userPhotoPreview');
+        if (preview) {
+            preview.src = dataUrl;
+            preview.classList.add('has-photo');
+            preview.style.display = 'block';
+        }
+        this.setCameraButtonsState({ capture: true, clear: true });
+        this.showMessage('User photo captured successfully.', 'success');
+    }
+
+    clearUserPhoto(options = {}) {
+        const { preserveStream = false } = options;
+        const hiddenInput = document.getElementById('newUserPhoto');
+        if (hiddenInput) hiddenInput.value = '';
+
+        const preview = document.getElementById('userPhotoPreview');
+        if (preview) {
+            preview.src = '';
+            preview.classList.remove('has-photo');
+            preview.style.display = 'none';
+        }
+
+        if (preserveStream && this.userCameraStream) {
+            this.setCameraButtonsState({ capture: true, clear: false });
+        } else {
+            this.stopUserCamera();
+            this.setCameraButtonsState({ capture: false, clear: false });
+        }
+    }
+
+    stopUserCamera() {
+        if (this.userCameraStream) {
+            this.userCameraStream.getTracks().forEach(track => track.stop());
+            this.userCameraStream = null;
+        }
+        const video = document.getElementById('userCameraPreview');
+        if (video) {
+            video.pause?.();
+            video.srcObject = null;
+            video.style.display = 'none';
+        }
+    }
+
+    setCameraButtonsState({ capture = false, clear = false } = {}) {
+        const captureBtn = document.getElementById('capturePhotoBtn');
+        const clearBtn = document.getElementById('clearPhotoBtn');
+        if (captureBtn) captureBtn.disabled = !capture;
+        if (clearBtn) clearBtn.disabled = !clear;
     }
 
     renderUsersTable() {
@@ -1265,10 +1417,14 @@ class PharmaStore {
 
         (this.users || []).forEach(user => {
             const row = document.createElement('tr');
+            const photoCell = user.photo 
+                ? `<img src="${user.photo}" alt="${user.username} photo" class="user-photo-thumb">`
+                : `<span class="text-muted">No photo</span>`;
             row.innerHTML = `
                 <td>${user.username}</td>
                 <td>${user.type || 'user'}</td>
                 <td>${this.formatDate(user.createdAt)}</td>
+                <td>${photoCell}</td>
                 <td>
                     <button class="btn-delete" onclick="pharmaStore.deleteUser('${user.username}')" ${user.username === this.currentUser?.username ? 'disabled' : ''}>
                         <i class="fas fa-trash"></i>
