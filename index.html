@@ -51,19 +51,19 @@
                 <div class="login-brand">
                     <div class="login-logo" aria-hidden="true"><i class="fas fa-pills"></i></div>
                     <div>
-                        <h2 id="loginTitle">PharmaStore Sign in</h2>
-                        <div class="login-hint">Secure access to inventory and sales &mdash; your role is detected automatically.</div>
+                        <h2 id="loginTitle" data-key="loginTitle">PharmaStore Sign in</h2>
+                        <div class="login-hint" data-key="loginHint">Secure access to inventory and sales &mdash; your role is detected automatically.</div>
                     </div>
                 </div>
 
-                <label for="username">Username</label>
+                <label for="username" data-key="usernameLabel">Username</label>
                 <input id="username" name="username" type="text" autocomplete="username" required aria-required="true" placeholder="Enter username">
 
-                <label for="password">Password</label>
+                <label for="password" data-key="passwordLabel">Password</label>
                 <input id="password" name="password" type="password" autocomplete="current-password" required aria-required="true" placeholder="Enter password">
 
                 <div class="form-actions">
-                    <button type="submit" class="btn-primary">Login</button>
+                    <button type="submit" class="btn-primary" data-key="login">Login</button>
                 </div>
 
                 <div id="loginMessage" class="form-message" aria-live="polite"></div>
@@ -77,7 +77,7 @@
         <header class="app-header">
             <div class="header-left">
                 <i class="fas fa-pills"></i>
-                <h1>PharmaStore Management</h1>
+                <h1 data-key="appTitle">PharmaStore Management</h1>
             </div>
             <div class="header-right">
                 <div class="theme-switcher" id="themeSwitcher" onclick="pharmaStore.toggleTheme()" title="Toggle Theme">
@@ -110,25 +110,25 @@
 
         <!-- Navigation -->
         <nav class="nav-menu" id="navMenu">
-            <button class="nav-btn active" data-section="dashboard">
+                <button class="nav-btn active" data-section="dashboard" data-key="navDashboard">
                 <i class="fas fa-tachometer-alt"></i> Dashboard
             </button>
-            <button class="nav-btn" data-section="drugs">
+            <button class="nav-btn" data-section="drugs" data-key="navDrugs">
                 <i class="fas fa-pills"></i> Manage Drugs
             </button>
-            <button class="nav-btn" data-section="sales">
+            <button class="nav-btn" data-section="sales" data-key="navSales">
                 <i class="fas fa-shopping-cart"></i> Sales
             </button>
-            <button class="nav-btn" data-section="reports">
+            <button class="nav-btn" data-section="reports" data-key="navReports">
                 <i class="fas fa-chart-bar"></i> Reports
             </button>
-            <button class="nav-btn" data-section="analytics">
+            <button class="nav-btn" data-section="analytics" data-key="navAnalytics">
                 <i class="fas fa-chart-line"></i> Analytics
             </button>
-            <button class="nav-btn" data-section="stockAdjustment">
+            <button class="nav-btn" data-section="stockAdjustment" data-key="navStock">
                 <i class="fas fa-adjust"></i> Stock Adjustment
             </button>
-            <button class="nav-btn" data-section="pettyCash">
+            <button class="nav-btn" data-section="pettyCash" data-key="navPettyCash">
                 <i class="fas fa-wallet"></i> Petty Cash
             </button>
             <button class="nav-btn admin-only" data-section="payroll" style="display: none;">
@@ -146,7 +146,7 @@
         <main class="main-content">
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
-                <h2>Dashboard</h2>
+                <h2 data-key="dashboardTitle">Dashboard</h2>
                 <div class="dashboard-stats">
                     <div class="stat-card">
                         <i class="fas fa-pills"></i>
@@ -185,7 +185,7 @@
             <!-- Drugs Management Section -->
             <section id="drugs" class="content-section">
                 <div class="section-header">
-                    <h2>Drug Management</h2>
+                <h2 data-key="drugManagementTitle">Drug Management</h2>
                     <button class="btn-primary" onclick="toggleDrugForm()">
                         <i class="fas fa-plus"></i> Add New Drug
                     </button>
