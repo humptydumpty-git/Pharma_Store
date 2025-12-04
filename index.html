@@ -1,71 +1,53 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>PharmaStore Management System</title>
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="src/utils/calculations.js"></script>
-    <script src="src/utils/validation.js"></script>
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="PharmaStore">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    
-    <!-- Local Storage Based App -->
-    <script>
-        // Simple localStorage wrapper for offline use
-        window.PharmaStoreDB = {
-            get: (key) => {
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : null;
-            },
-            set: (key, data) => {
-                localStorage.setItem(key, JSON.stringify(data));
-                return true;
-            },
-            remove: (key) => {
-                localStorage.removeItem(key);
-                return true;
-            },
-            clear: () => {
-                localStorage.clear();
-                return true;
-            }
-        };
-    </script>
 
+    <!-- Optional utils used by other code -->
+    <script defer src="src/utils/calculations.js"></script>
+    <script defer src="src/utils/validation.js"></script>
+
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.json" />
+
+    <style>
+        /* Minimal login styles for a nicer look */
+        body { font-family: Inter, Roboto, Arial, sans-serif; margin:0; background: #f3f4f6; color:#111827; }
+        .login-container { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+        .login-card { width: min(420px, 96%); background:#fff; border-radius:10px; padding:20px; box-shadow: 0 6px 28px rgba(0,0,0,0.08); }
+        .login-card h2 { margin:0 0 12px; font-size:1.2rem; color:#0f172a; }
+        .login-card input, .login-card select { width:100%; padding:10px; margin-bottom:10px; border:1px solid #e6e9ee; border-radius:8px; }
+        .btn-primary { background:#4f46e5; color:#fff; padding:10px 12px; border-radius:8px; border:none; cursor:pointer; font-weight:600; }
+        .btn-secondary { padding:8px 10px; background:#eef2ff; border:1px solid #dbeafe; cursor:pointer; border-radius:8px; }
+        .form-message { margin-top:8px; font-size:0.9rem; min-height:18px; color:#dc2626; }
+        .main-app { display:none; padding:18px; }
+    </style>
 </head>
 <body>
-    <!-- Login Screen (re-styled) -->
+    <!-- Login Screen -->
     <div id="loginScreen" class="login-container" role="dialog" aria-labelledby="loginTitle" aria-modal="true">
         <div class="login-card" role="document">
-            <form id="loginForm" class="login-form" autocomplete="on" novalidate>
-                <div class="login-brand">
-                    <div class="login-logo" aria-hidden="true"><i class="fas fa-pills"></i></div>
-                    <div>
-                        <h2 id="loginTitle" data-key="loginTitle">PharmaStore Sign in</h2>
-                        <div class="login-hint" data-key="loginHint">Secure access to inventory and sales &mdash; your role is detected automatically.</div>
-                    </div>
+            <h2 id="loginTitle"><i class="fas fa-pills"></i> PharmaStore Sign in</h2>
+
+            <form id="loginForm" autocomplete="on" novalidate>
+                <input id="username" name="username" type="text" required placeholder="Username" autocomplete="username" />
+                <input id="password" name="password" type="password" required placeholder="Password" autocomplete="current-password" />
+                <select id="userType" name="userType" aria-label="User Type">
+                    <option value="">Any</option>
+                    <option value="admin">Admin</option>
+                    <option value="user">User</option>
+                </select>
+
+                <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
+                    <button type="submit" class="btn-primary">Login</button>
+                    <button type="button" class="btn-secondary" title="Fill demo credentials" id="demoCreds">Demo</button>
                 </div>
-
-                <label for="username" data-key="usernameLabel">Username</label>
-                <input id="username" name="username" type="text" autocomplete="username" required aria-required="true" placeholder="Enter username">
-
-                <label for="password" data-key="passwordLabel">Password</label>
-                <input id="password" name="password" type="password" autocomplete="current-password" required aria-required="true" placeholder="Enter password">
-
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary" data-key="login">Login</button>
-                </div>
-
                 <div id="loginMessage" class="form-message" aria-live="polite"></div>
             </form>
         </div>
@@ -73,1103 +55,74 @@
 
     <!-- Main Application -->
     <div id="mainApp" class="main-app">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-left">
-                <i class="fas fa-pills"></i>
-                <h1 data-key="appTitle">PharmaStore Management</h1>
-            </div>
-            <div class="header-right">
-                <div class="theme-switcher" id="themeSwitcher" onclick="pharmaStore.toggleTheme()" title="Toggle Theme">
-                    <div class="theme-switcher-slider"></div>
-                </div>
-                <div class="sync-status">
-                    <span id="syncStatus" class="status-indicator offline">
-                        <i class="fas fa-wifi"></i> <span>Offline</span>
-                    </span>
-                    <button id="syncBtn" class="sync-btn" onclick="pharmaStore.syncToCloud()" title="Sync to Cloud">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                    </button>
-                </div>
-                <div class="language-selector">
-                    <select id="languageSelect" onchange="pharmaStore.changeLanguage(this.value)" class="form-group select">
-                        <option value="en">🇺🇸 English</option>
-                        <option value="es">🇪🇸 Español</option>
-                        <option value="fr">🇫🇷 Français</option>
-                    </select>
-                </div>
-                <span id="currentUser" class="user-info"></span>
-                <button id="changePasswordBtn" class="logout-btn">
-                    <i class="fas fa-key"></i> <span data-key="changePassword">Change Password</span>
-                </button>
-                <button id="logoutBtn" class="logout-btn">
-                    <i class="fas fa-sign-out-alt"></i> <span data-key="logout">Logout</span>
-                </button>
-            </div>
+        <header style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div><strong>PharmaStore</strong></div>
+            <div>Logged in as: <span id="currentUser"></span></div>
         </header>
 
-        <div class="app-body">
-            <aside class="sidebar" aria-label="Primary navigation">
-                <nav class="nav-menu" id="navMenu">
-                    <button class="nav-btn active" data-section="dashboard" data-key="navDashboard">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
-                    </button>
-                    <button class="nav-btn" data-section="drugs" data-key="navDrugs">
-                        <i class="fas fa-pills"></i> Manage Drugs
-                    </button>
-                    <button class="nav-btn" data-section="sales" data-key="navSales">
-                        <i class="fas fa-shopping-cart"></i> Sales
-                    </button>
-                    <button class="nav-btn" data-section="reports" data-key="navReports">
-                        <i class="fas fa-chart-bar"></i> Reports
-                    </button>
-                    <button class="nav-btn" data-section="analytics" data-key="navAnalytics">
-                        <i class="fas fa-chart-line"></i> Analytics
-                    </button>
-                    <button class="nav-btn" data-section="stockAdjustment" data-key="navStock">
-                        <i class="fas fa-adjust"></i> Stock Adjustment
-                    </button>
-                    <button class="nav-btn" data-section="pettyCash" data-key="navPettyCash">
-                        <i class="fas fa-wallet"></i> Petty Cash
-                    </button>
-                    <button class="nav-btn admin-only" data-section="payroll" style="display: none;">
-                        <i class="fas fa-money-check-alt"></i> Payroll
-                    </button>
-                    <button class="nav-btn admin-only" data-section="audit" style="display: none;">
-                        <i class="fas fa-history"></i> Audit Trail
-                    </button>
-                    <button class="nav-btn admin-only" data-section="admin" style="display: none;">
-                        <i class="fas fa-cog"></i> Admin Panel
-                    </button>
-                </nav>
-            </aside>
+        <!-- Sales Section (multi-item sale UI + recent sales) -->
+        <section id="sales" class="content-section">
+            <h3>Sales</h3>
 
-            <!-- Main Content -->
-            <main class="main-content">
-            <!-- Dashboard Section -->
-            <section id="dashboard" class="content-section active">
-                <h2 data-key="dashboardTitle">Dashboard</h2>
-                <div class="dashboard-stats">
-                    <div class="stat-card">
-                        <i class="fas fa-pills"></i>
-                        <h3 id="totalDrugs">0</h3>
-                        <p>Total Drugs</p>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <h3 id="lowStock">0</h3>
-                        <p>Low Stock</p>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-dollar-sign"></i>
-                        <h3 id="todaySales">0</h3>
-                        <p>Today's Sales</p>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-calendar-day"></i>
-                        <h3 id="expiringSoon">0</h3>
-                        <p>Expiring Soon</p>
-                    </div>
-                </div>
-                <div class="dashboard-actions">
-                    <button class="action-btn" onclick="showSection('drugs')">
-                        <i class="fas fa-plus"></i> Add New Drug
-                    </button>
-                    <button class="action-btn" onclick="showSection('sales')">
-                        <i class="fas fa-shopping-cart"></i> Make Sale
-                    </button>
-                    <button class="action-btn" onclick="showSection('reports')">
-                        <i class="fas fa-chart-line"></i> View Reports
-                    </button>
-                </div>
-            </section>
-
-            <!-- Drugs Management Section -->
-            <section id="drugs" class="content-section">
-                <div class="section-header">
-                <h2 data-key="drugManagementTitle">Drug Management</h2>
-                    <button class="btn-primary" onclick="toggleDrugForm()">
-                        <i class="fas fa-plus"></i> Add New Drug
-                    </button>
-                </div>
-
-                <!-- Add/Edit Drug Form -->
-                <div id="drugForm" class="form-container" style="display: none;">
-                    <form id="drugFormElement" class="drug-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="drugName">Drug Name *</label>
-                                <input type="text" id="drugName" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="drugCategory">Category *</label>
-                                <select id="drugCategory" required>
-                                    <option value="">Select Category</option>
-                                    <option value="Antibiotics">Antibiotics</option>
-                                    <option value="Pain Relief">Pain Relief</option>
-                                    <option value="Vitamins">Vitamins</option>
-                                    <option value="Cough & Cold">Cough & Cold</option>
-                                    <option value="Digestive">Digestive</option>
-                                    <option value="Heart & Blood">Heart & Blood</option>
-                                    <option value="Diabetes">Diabetes</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="drugQuantity">Quantity *</label>
-                                <input type="number" id="drugQuantity" min="0" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="drugPrice">Price per Unit *</label>
-                                <input type="number" id="drugPrice" min="0" step="0.01" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="drugExpiry">Expiry Date *</label>
-                                <input type="date" id="drugExpiry" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="drugSupplier">Supplier</label>
-                                <input type="text" id="drugSupplier">
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary">Save Drug</button>
-                            <button type="button" class="btn-secondary" onclick="cancelDrugForm()">Cancel</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Drug List -->
-                <div class="drug-list">
-                    <div class="list-header">
-                        <h3>Drug Inventory</h3>
-                        <div class="search-box">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="drugSearch" placeholder="Search drugs...">
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <table id="drugTable">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Category</th>
-                                    <th>Quantity</th>
-                                    <th>Price</th>
-                                    <th>Expiry Date</th>
-                                    <th>Supplier</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="drugTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Sales Section -->
-            <section id="sales" class="content-section">
-                <h2>Sales Management</h2>
-                
-                <!-- Sales Form -->
-                <div class="sales-form-container">
-                    <!-- keep original select hidden so existing population code still works -->
-                    <div id="saleTemplates" style="display:none;">
-                        <select id="saleDrug">
-                            <option value="">Select Drug</option>
-                        </select>
-                    </div>
-
-                    <!-- Multi-item Sales UI -->
-                    <div id="multiSaleContainer" class="sales-form">
-                        <table class="sale-items-table">
-                            <thead>
-                                <tr>
-                                    <th>Drug</th>
-                                    <th>Quantity</th>
-                                    <th>Price / unit</th>
-                                    <th>Line Total</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="saleItemsBody">
-                                <!-- rows added dynamically -->
-                            </tbody>
-                        </table>
-
-                        <div class="sale-controls">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="multiSaleCustomerName">Customer Name</label>
-                                    <input type="text" id="multiSaleCustomerName" placeholder="Walk-in Customer">
-                                </div>
-                                <div class="form-group">
-                                    <label for="multiSalePaymentMethod">Payment Method</label>
-                                    <select id="multiSalePaymentMethod">
-                                        <option value="Cash">Cash</option>
-                                        <option value="Card">Card</option>
-                                        <option value="Mobile Payment">Mobile Payment</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="sale-control-bar">
-                                <button type="button" id="addSaleItemBtn" class="btn-secondary">
-                                    <i class="fas fa-plus"></i> Add Item
-                                </button>
-
-                                <div class="live-total-pill">
-                                    <span>Subtotal</span>
-                                    <strong>$<span id="saleSubtotal">0.00</span></strong>
-                                </div>
-                            </div>
-
-                            <div class="sale-summary-panel" aria-live="polite">
-                                <div class="summary-chip">
-                                    <span>Line Items</span>
-                                    <strong id="saleItemCount">0</strong>
-                                </div>
-                                <div class="summary-chip">
-                                    <span>Total Units</span>
-                                    <strong id="saleUnitCount">0</strong>
-                                </div>
-                                <div class="summary-chip">
-                                    <span id="saleTaxLabel">Tax (7.5%)</span>
-                                    <strong>$<span id="saleTax">0.00</span></strong>
-                                </div>
-                                <div class="summary-chip">
-                                    <span>Discount</span>
-                                    <strong>$<span id="saleDiscount">0.00</span></strong>
-                                </div>
-                                <div class="summary-chip emphasis">
-                                    <span>Grand Total</span>
-                                    <strong>$<span id="saleGrandTotal">0.00</span></strong>
-                                </div>
-                                <div class="summary-chip emphasis">
-                                    <span>Change Due</span>
-                                    <strong>$<span id="saleChangeDue">0.00</span></strong>
-                                </div>
-                            </div>
-
-                            <div class="sale-finance-panel">
-                                <div class="form-group">
-                                    <label for="taxRateInput">Tax Rate (%)</label>
-                                    <input type="number" id="taxRateInput" min="0" max="50" step="0.1">
-                                </div>
-                                <div class="form-group">
-                                    <label for="discountRateInput">Discount (%)</label>
-                                    <input type="number" id="discountRateInput" min="0" max="100" step="0.1">
-                                </div>
-                                <div class="form-group">
-                                    <label for="cashReceivedInput">Cash Received</label>
-                                    <input type="number" id="cashReceivedInput" min="0" step="0.01" placeholder="0.00">
-                                </div>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="button" id="processMultiSaleBtn" class="btn-primary">
-                                    <i class="fas fa-shopping-cart"></i> Process Sale
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Receipt Display -->
-                <div id="receiptContainer" class="receipt-container" style="display: none;">
-                    <div class="receipt-header">
-                        <h3>Receipt</h3>
-                        <button class="btn-primary" onclick="printReceipt()">
-                            <i class="fas fa-print"></i> Print
-                        </button>
-                    </div>
-                    <div id="receiptContent" class="receipt-content"></div>
-                </div>
-
-                <!-- Recent Sales -->
-                <div class="recent-sales">
-                    <h3>Recent Sales</h3>
-                    <div class="table-container">
-                        <table id="salesTable">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Drug</th>
-                                    <th>Quantity</th>
-                                    <th>Price</th>
-                                    <th>Total</th>
-                                    <th>Customer</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="salesTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Reports Section -->
-            <!-- Analytics Dashboard Section -->
-            <section id="analytics" class="content-section">
-                <h2>Analytics Dashboard</h2>
-                
-                <!-- Analytics Overview -->
-                <div class="analytics-overview">
-                    <div class="analytics-card">
-                        <h3>Sales Performance</h3>
-                        <div class="chart-container">
-                            <canvas id="salesChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="analytics-card">
-                        <h3>Top Selling Drugs</h3>
-                        <div class="chart-container">
-                            <canvas id="topDrugsChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="analytics-card">
-                        <h3>Sales by Category</h3>
-                        <div class="chart-container">
-                            <canvas id="categoryChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="analytics-card">
-                        <h3>Monthly Trends</h3>
-                        <div class="chart-container">
-                            <canvas id="monthlyChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Analytics Insights -->
-                <div class="analytics-insights">
-                    <h3>Key Insights</h3>
-                    <div id="insightsContainer" class="insights-grid">
-                        <!-- Dynamic insights will be populated here -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- Reports Section -->
-            <section id="reports" class="content-section">
-                <h2>Reports & Analytics</h2>
-                
-                <!-- Report Filters -->
-                <div class="report-filters">
-                    <div class="filter-group">
-                        <label for="reportType">Report Type</label>
-                        <select id="reportType">
-                            <option value="daily">Daily Sales</option>
-                            <option value="weekly">Weekly Sales</option>
-                            <option value="monthly">Monthly Sales</option>
-                            <option value="yearly">Yearly Sales</option>
-                            <option value="inventory">Inventory Report</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="reportDate">Date</label>
-                        <input type="date" id="reportDate">
-                    </div>
-                    <div class="filter-group">
-                        <button class="btn-primary" onclick="generateReport()">
-                            <i class="fas fa-chart-bar"></i> Generate Report
-                        </button>
-                        <button class="btn-secondary" onclick="printReport()">
-                            <i class="fas fa-print"></i> Print Report
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Report Display -->
-                <div id="reportContainer" class="report-container" style="display: none;">
-                    <div class="report-header">
-                        <h3 id="reportTitle">Report</h3>
-                        <div class="report-summary">
-                            <div class="summary-item">
-                                <span class="label">Total Sales:</span>
-                                <span id="totalSalesAmount">$0.00</span>
-                            </div>
-                            <div class="summary-item">
-                                <span class="label">Items Sold:</span>
-                                <span id="totalItemsSold">0</span>
-                            </div>
-                            <div class="summary-item">
-                                <span class="label">Transactions:</span>
-                                <span id="totalTransactions">0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="reportContent" class="report-content">
-                    </div>
-                </div>
-            </section>
-
-            <!-- Audit Trail Section -->
-            <section id="audit" class="content-section">
-                <h2>Audit Trail</h2>
-                
-                <!-- Audit Filters -->
-                <div class="audit-filters">
-                    <div class="filter-group">
-                        <label for="auditUser">User</label>
-                        <select id="auditUser">
-                            <option value="">All Users</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="auditAction">Action</label>
-                        <select id="auditAction">
-                            <option value="">All Actions</option>
-                            <option value="login">Login</option>
-                            <option value="logout">Logout</option>
-                            <option value="add_drug">Add Drug</option>
-                            <option value="edit_drug">Edit Drug</option>
-                            <option value="delete_drug">Delete Drug</option>
-                            <option value="sale">Sale</option>
-                            <option value="delete_sale">Delete Sale</option>
-                            <option value="change_password">Change Password</option>
-                            <option value="add_user">Add User</option>
-                            <option value="export_data">Export Data</option>
-                            <option value="import_data">Import Data</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="auditDate">Date Range</label>
-                        <input type="date" id="auditDate">
-                    </div>
-                    <div class="filter-group">
-                        <button class="btn-primary" onclick="pharmaStore.filterAuditTrail()">
-                            <i class="fas fa-search"></i> Filter
-                        </button>
-                        <button class="btn-secondary" onclick="pharmaStore.clearAuditFilters()">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Audit Trail Table -->
-                <div class="table-container">
-                    <table id="auditTable">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>User</th>
-                                <th>Action</th>
-                                <th>Details</th>
-                                <th>IP Address</th>
-                            </tr>
-                        </thead>
-                        <tbody id="auditTableBody">
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Admin Panel Section -->
-            <section id="admin" class="content-section">
-                <h2>Admin Panel</h2>
-                <div class="admin-actions">
-                    <button class="admin-btn" onclick="exportData()">
-                        <i class="fas fa-download"></i> Export Data
-                    </button>
-                    <button class="admin-btn" onclick="importData()">
-                        <i class="fas fa-upload"></i> Import Data
-                    </button>
-                    <button class="admin-btn" onclick="pharmaStore.syncToCloud()">
-                        <i class="fas fa-cloud-upload-alt"></i> Sync to Cloud
-                    </button>
-                    <button class="admin-btn" onclick="pharmaStore.syncFromCloud()">
-                        <i class="fas fa-cloud-download-alt"></i> Sync from Cloud
-                    </button>
-                    <button class="admin-btn" onclick="pharmaStore.setupCloudBackup()">
-                        <i class="fas fa-cloud"></i> Setup Auto Backup
-                    </button>
-                    <button class="admin-btn" onclick="clearAllData()">
-                        <i class="fas fa-trash"></i> Clear All Data
-                    </button>
-                </div>
-                <div class="admin-stats">
-                    <h3>System Statistics</h3>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">Total Users:</span>
-                            <span class="stat-value" id="totalUsers">2</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Total Sales:</span>
-                            <span class="stat-value" id="adminTotalSales">$0.00</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Total Inventory Value:</span>
-                            <span class="stat-value" id="adminInventoryValue">$0.00</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-container" id="userManagement">
-                    <div class="section-header">
-                        <h2>User Management (Admin Only)</h2>
-                    </div>
-                    <form id="addUserForm" class="drug-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="newUsername">Username *</label>
-                                <input type="text" id="newUsername" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="newPassword">Password *</label>
-                                <input type="password" id="newPassword" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="newUserType">Type *</label>
-                                <select id="newUserType" required>
-                                    <option value="admin">Admin</option>
-                                    <option value="user" selected>User</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group full-width">
-                                <label>User Photo (optional)</label>
-                                <div class="camera-capture" id="userCameraContainer">
-                                    <video id="userCameraPreview" autoplay playsinline muted></video>
-                                    <canvas id="userPhotoCanvas" aria-hidden="true"></canvas>
-                                    <img id="userPhotoPreview" alt="User photo preview" src="" />
-                                    <div class="camera-actions">
-                                        <button type="button" class="btn-secondary" id="startCameraBtn">
-                                            <i class="fas fa-camera"></i> Start Camera
-                                        </button>
-                                        <button type="button" class="btn-primary" id="capturePhotoBtn" disabled>
-                                            <i class="fas fa-circle-dot"></i> Capture Photo
-                                        </button>
-                                        <button type="button" class="btn-secondary" id="clearPhotoBtn" disabled>
-                                            <i class="fas fa-trash"></i> Clear Photo
-                                        </button>
-                                    </div>
-                                    <input type="hidden" id="newUserPhoto">
-                                </div>
-                                <p class="camera-hint">Capture staff photos directly from this device for quick identification.</p>
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary"><i class="fas fa-user-plus"></i> Add User</button>
-                            <button type="button" class="btn-secondary" id="cancelEditUser" onclick="pharmaStore.cancelEditUser()" style="display: none;">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
-                        </div>
-                    </form>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Username</th>
-                                    <th>Role</th>
-                                    <th>Created</th>
-                                    <th>Photo</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersTableBody"></tbody>
-                        </table>
-                    </div>
-                    <div class="error-log-panel">
-                        <h3>Recent System Errors</h3>
-                        <p class="section-description">Only visible to admins. Captures runtime issues logged by the app.</p>
-                        <div class="table-container">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Action</th>
-                                        <th>Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="errorLogTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-            </section>
-
-            <!-- Stock Adjustment Section -->
-            <section id="stockAdjustment" class="content-section">
-                <div class="section-header">
-                    <h2>Stock Adjustment</h2>
-                    <p class="section-description">Adjust inventory quantities for corrections, damaged items, or discrepancies. All adjustments are tracked in the audit trail.</p>
-                </div>
-                <div class="form-container">
-                    <form id="stockAdjustmentForm" class="drug-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="adjustmentDrug">Select Drug *</label>
-                                <select id="adjustmentDrug" required>
-                                    <option value="">Select Drug</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Current Stock</label>
-                                <div style="padding: 12px 15px; background: #f8f9fa; border-radius: 8px; font-weight: 600; color: #667eea;">
-                                    <span id="adjustmentCurrentStock">0</span> units
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="adjustmentType">Adjustment Type *</label>
-                                <select id="adjustmentType" required>
-                                    <option value="">Select Type</option>
-                                    <option value="increase">Increase Stock</option>
-                                    <option value="decrease">Decrease Stock</option>
-                                    <option value="set">Set to Specific Quantity</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="adjustmentQuantity">Quantity *</label>
-                                <input type="number" id="adjustmentQuantity" min="1" required placeholder="Enter quantity">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="adjustmentReason">Reason *</label>
-                                <select id="adjustmentReason" required>
-                                    <option value="">Select Reason</option>
-                                    <option value="Physical Count Correction">Physical Count Correction</option>
-                                    <option value="Damaged Items">Damaged Items</option>
-                                    <option value="Expired Items">Expired Items</option>
-                                    <option value="Theft/Loss">Theft/Loss</option>
-                                    <option value="Return from Customer">Return from Customer</option>
-                                    <option value="Supplier Return">Supplier Return</option>
-                                    <option value="Found Items">Found Items</option>
-                                    <option value="System Error Correction">System Error Correction</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="adjustmentNotes">Notes</label>
-                                <input type="text" id="adjustmentNotes" placeholder="Additional details (optional)">
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-adjust"></i> Apply Adjustment
-                            </button>
-                            <button type="reset" class="btn-secondary">
-                                <i class="fas fa-redo"></i> Reset
-                            </button>
-                        </div>
-                    </form>
-
-                    <!-- Stock Adjustment History -->
-                    <div class="adjustment-history">
-                        <h3 style="margin-bottom: 1rem;">Adjustment History</h3>
-                        <div class="table-container">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Date/Time</th>
-                                        <th>Drug</th>
-                                        <th>Old Qty</th>
-                                        <th>Adjustment</th>
-                                        <th>New Qty</th>
-                                        <th>Reason</th>
-                                        <th>Notes</th>
-                                        <th>Adjusted By</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="stockAdjustmentsTableBody">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Petty Cash Section -->
-            <section id="pettyCash" class="content-section">
-                <div class="section-header">
-                    <h2>Petty Cash Book</h2>
-                    <p class="section-description">Record expenses and miscellaneous transactions</p>
-                </div>
-                
-                <!-- Petty Cash Balance -->
-                <div class="form-container" style="margin-bottom: 2rem;">
-                    <div class="section-header">
-                        <h3>Current Balance</h3>
-                        <div style="display: flex; align-items: center; gap: 20px;">
-                            <div style="font-size: 2rem; font-weight: 600; color: #667eea;">
-                                $<span id="pettyCashBalanceDisplay">0.00</span>
-                            </div>
-                            <button type="button" class="btn-primary" id="updatePettyCashBalance">
-                                <i class="fas fa-edit"></i> Update Balance
-                            </button>
-                        </div>
-                    </div>
-                    <div id="updateBalanceForm" style="display: none; margin-top: 1rem;">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="newBalance">New Balance *</label>
-                                <input type="number" id="newBalance" step="0.01" min="0" placeholder="Enter new balance">
-                            </div>
-                            <div class="form-group">
-                                <label for="balanceNotes">Notes</label>
-                                <input type="text" id="balanceNotes" placeholder="Reason for balance update">
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn-primary" onclick="pharmaStore.savePettyCashBalance()">Save</button>
-                            <button type="button" class="btn-secondary" onclick="pharmaStore.cancelBalanceUpdate()">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Expense Entry Form -->
-                <div class="form-container">
-                    <h3>Record Expense</h3>
-                    <form id="pettyCashForm" class="drug-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="expenseDate">Date *</label>
-                                <input type="date" id="expenseDate" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="expenseCategory">Category *</label>
-                                <select id="expenseCategory" required>
-                                    <option value="">Select Category</option>
-                                    <option value="Office Supplies">Office Supplies</option>
-                                    <option value="Utilities">Utilities</option>
-                                    <option value="Transportation">Transportation</option>
-                                    <option value="Maintenance">Maintenance</option>
-                                    <option value="Food & Beverages">Food & Beverages</option>
-                                    <option value="Communication">Communication</option>
-                                    <option value="Miscellaneous">Miscellaneous</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="expenseDescription">Description *</label>
-                                <input type="text" id="expenseDescription" required placeholder="What was the expense for?">
-                            </div>
-                            <div class="form-group">
-                                <label for="expenseAmount">Amount *</label>
-                                <input type="number" id="expenseAmount" step="0.01" min="0" required placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="expensePaymentMethod">Payment Method *</label>
-                                <select id="expensePaymentMethod" required>
-                                    <option value="Cash">Cash</option>
-                                    <option value="Card">Card</option>
-                                    <option value="Mobile Payment">Mobile Payment</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="expenseNotes">Notes</label>
-                                <input type="text" id="expenseNotes" placeholder="Additional details (optional)">
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-save"></i> Record Expense
-                            </button>
-                            <button type="reset" class="btn-secondary">
-                                <i class="fas fa-redo"></i> Reset
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Expense History -->
-                <div class="form-container" style="margin-top: 2rem;">
-                    <h3>Expense History</h3>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Category</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
-                                    <th>Payment Method</th>
-                                    <th>Notes</th>
-                                    <th>Recorded By</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pettyCashTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Payroll Section (Admin Only) -->
-            <section id="payroll" class="content-section">
-                <div class="section-header">
-                    <h2>Payroll Management</h2>
-                    <p class="section-description">Manage employees and process salary payments</p>
-                </div>
-
-                <!-- Employee Management -->
-                <div class="form-container">
-                    <div class="section-header">
-                        <h3>Employee Management</h3>
-                        <button type="button" class="btn-primary" onclick="pharmaStore.toggleEmployeeForm()">
-                            <i class="fas fa-user-plus"></i> Add Employee
-                        </button>
-                    </div>
-                    
-                    <form id="employeeForm" class="drug-form" style="display: none;">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="employeeName">Full Name *</label>
-                                <input type="text" id="employeeName" required placeholder="Employee full name">
-                            </div>
-                            <div class="form-group">
-                                <label for="employeePosition">Position *</label>
-                                <input type="text" id="employeePosition" required placeholder="e.g., Cashier, Pharmacist">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="employeeSalary">Monthly Salary *</label>
-                                <input type="number" id="employeeSalary" step="0.01" min="0" required placeholder="0.00">
-                            </div>
-                            <div class="form-group">
-                                <label for="employeePhone">Phone Number</label>
-                                <input type="text" id="employeePhone" placeholder="Contact number">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="employeeEmail">Email</label>
-                                <input type="email" id="employeeEmail" placeholder="email@example.com">
-                            </div>
-                            <div class="form-group">
-                                <label for="employeeStartDate">Start Date *</label>
-                                <input type="date" id="employeeStartDate" required>
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-save"></i> Save Employee
-                            </button>
-                            <button type="button" class="btn-secondary" onclick="pharmaStore.cancelEmployeeForm()">Cancel</button>
-                        </div>
-                    </form>
-
-                    <div class="table-container" style="margin-top: 1.5rem;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Position</th>
-                                    <th>Salary</th>
-                                    <th>Phone</th>
-                                    <th>Start Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="employeesTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Salary Payment -->
-                <div class="form-container" style="margin-top: 2rem;">
-                    <h3>Process Salary Payment</h3>
-                    <form id="salaryPaymentForm" class="drug-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="paymentEmployee">Employee *</label>
-                                <select id="paymentEmployee" required>
-                                    <option value="">Select Employee</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="paymentMonth">Payment Month *</label>
-                                <input type="month" id="paymentMonth" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="paymentAmount">Amount *</label>
-                                <input type="number" id="paymentAmount" step="0.01" min="0" required placeholder="0.00" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label for="paymentMethod">Payment Method *</label>
-                                <select id="paymentMethod" required>
-                                    <option value="Cash">Cash</option>
-                                    <option value="Bank Transfer">Bank Transfer</option>
-                                    <option value="Check">Check</option>
-                                    <option value="Mobile Payment">Mobile Payment</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="paymentNotes">Notes</label>
-                                <input type="text" id="paymentNotes" placeholder="Additional notes (optional)">
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-money-check-alt"></i> Process Payment
-                            </button>
-                            <button type="reset" class="btn-secondary">
-                                <i class="fas fa-redo"></i> Reset
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Payment History -->
-                <div class="form-container" style="margin-top: 2rem;">
-                    <h3>Payment History</h3>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Employee</th>
-                                    <th>Position</th>
-                                    <th>Month</th>
-                                    <th>Amount</th>
-                                    <th>Payment Method</th>
-                                    <th>Notes</th>
-                                    <th>Processed By</th>
-                                </tr>
-                            </thead>
-                            <tbody id="salaryPaymentsTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-        </main>
-        </div>
-    </div>
-
-    <!-- Hidden file input for data import -->
-    <input type="file" id="fileInput" accept=".json" class="hidden-file-input">
-
-    <!-- Change Password Modal -->
-    <div id="changePasswordModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <h3>Change Password</h3>
-            <form id="changePasswordForm">
-                <div class="form-group">
-                    <label for="currentPassword">Current Password</label>
-                    <input type="password" id="currentPassword" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="newPassword1">New Password</label>
-                        <input type="password" id="newPassword1" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="newPassword2">Confirm New Password</label>
-                        <input type="password" id="newPassword2" required>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn-primary"><i class="fas fa-key"></i> Update Password</button>
-                    <button type="button" class="btn-secondary" id="cancelChangePassword">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- PWA Install Prompt -->
-    <div id="installPrompt" class="install-prompt" style="display: none;">
-        <div class="install-content">
-            <i class="fas fa-mobile-alt"></i>
-            <h3>Install PharmaStore App</h3>
-            <p>Install this app on your device for quick access and offline functionality.</p>
-            <div class="install-actions">
-                <button id="installBtn" class="btn-primary">Install App</button>
-                <button id="dismissInstall" class="btn-secondary">Not Now</button>
+            <!-- Hidden template select (populated by app.js) -->
+            <div id="saleTemplates" style="display:none;">
+                <select id="saleDrug">
+                    <option value="">Select Drug</option>
+                </select>
             </div>
-        </div>
+
+            <table class="sale-items-table" style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr><th>Drug</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Action</th></tr>
+                </thead>
+                <tbody id="saleItemsBody">
+                </tbody>
+            </table>
+
+            <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                <button id="addSaleItemBtn" class="btn-secondary">Add Item</button>
+                <div style="margin-left:auto;"><strong>Subtotal: $<span id="saleSubtotal">0.00</span></strong></div>
+                <button id="processMultiSaleBtn" class="btn-primary">Process Sale</button>
+            </div>
+
+            <div id="receiptContainer" style="display:none; margin-top:12px;">
+                <div id="receiptContent" style="background:#fff; padding:12px; border-radius:8px; border:1px solid #e6e9ee;"></div>
+            </div>
+
+            <h4 style="margin-top:18px;">Recent Sales</h4>
+            <table id="salesTable" style="width:100%; border-collapse:collapse;">
+                <thead><tr><th>Date</th><th>Drug</th><th>Qty</th><th>Price</th><th>Total</th><th>Customer</th></tr></thead>
+                <tbody id="salesTableBody"></tbody>
+            </table>
+        </section>
     </div>
 
-    <!-- Application Initialization -->
+    <!-- hidden input for import -->
+    <input type="file" id="fileInput" accept=".json" style="display:none;" />
+
+    <!-- Debug + safe service worker/manifest logic -->
     <script>
-        // Enhanced error handling
-        window.addEventListener('error', function(event) {
-            console.error('Global error:', event.error || event.message, event);
-            try {
-                const loginMessage = document.getElementById('loginMessage');
-                if (loginMessage) {
-                    loginMessage.textContent = 'An error occurred. Please check the console for details.';
-                    loginMessage.style.color = 'red';
-                    loginMessage.style.display = 'block';
-                }
-            } catch (e) {
-                console.error('Error in error handler:', e);
-            }
+        // Debug: error catcher
+        window.addEventListener('error', (ev) => {
+            console.error('Captured error:', ev.error || ev.message || ev);
+            try { document.getElementById('loginMessage')?.textContent = (ev.error?.message || ev.message || 'Error'); } catch(e){}
+        });
+        window.addEventListener('unhandledrejection', (ev) => {
+            console.error('Unhandled rejection:', ev.reason || ev);
         });
 
-        // Only initialize PWA features if running in a secure context
-        if (window.isSecureContext) {
-            // Service Worker Registration (only for http/https)
-            if ('serviceWorker' in navigator && (location.protocol === 'https:' || 
-                location.hostname === 'localhost' || 
-                location.hostname === '127.0.0.1')) {
-                
-                window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('sw.js')
-                        .then(reg => console.log('ServiceWorker registration successful'))
-                        .catch(err => console.error('ServiceWorker registration failed: ', err));
-                });
-            }
-
-            // PWA Install Prompt
-            let deferredPrompt;
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                const installPrompt = document.getElementById('installPrompt');
-                if (installPrompt) installPrompt.style.display = 'block';
+        // Only register SW when site is served via http(s)
+        const allowed = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+        if (allowed && 'serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(() => console.log('SW registered')).catch(e => console.warn('SW reg fail', e));
             });
-
-            const installBtn = document.getElementById('installBtn');
-            if (installBtn) {
-                installBtn.addEventListener('click', async () => {
-                    if (!deferredPrompt) return;
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response to the install prompt: ${outcome}`);
-                    deferredPrompt = null;
-                    const installPrompt = document.getElementById('installPrompt');
-                    if (installPrompt) installPrompt.style.display = 'none';
-                });
-            }
-
-            const dismissInstall = document.getElementById('dismissInstall');
-            if (dismissInstall) {
-                dismissInstall.addEventListener('click', () => {
-                    const installPrompt = document.getElementById('installPrompt');
-                    if (installPrompt) installPrompt.style.display = 'none';
-                });
-            }
+        } else {
+            console.log('Skipping SW/manifest registration (not served over HTTP/HTTPS).');
         }
     </script>
 
-    <script src="app.js"></script>
+    <!-- app.js -->
+    <script src="app.js" defer></script>
 </body>
 </html>
