@@ -129,6 +129,15 @@
         } else {
             console.log('Skipping SW/manifest registration (not served over HTTP/HTTPS).');
         }
+
+        // Ensure login screen is visible on initial load
+        window.addEventListener('DOMContentLoaded', () => {
+            const ls = document.getElementById('loginScreen');
+            const ma = document.getElementById('mainApp');
+            if (ls && (!ma || ma.style.display === '' || ma.style.display === 'none')) {
+                ls.style.display = 'flex';
+            }
+        });
     </script>
 
     <!-- app.js -->
