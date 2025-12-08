@@ -2,6 +2,7 @@ const CACHE_NAME = 'pharmastore-v1.0.0';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/offline.html',
   '/style.css',
   '/app.js',
   '/manifest.json',

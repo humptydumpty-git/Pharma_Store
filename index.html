@@ -14,7 +14,7 @@
     <script defer src="src/utils/validation.js"></script>
 
     <meta name="theme-color" content="#667eea">
-    <link rel="manifest" href="manifest.json" />
+    <!-- Manifest is injected via script for allowed protocols -->
 
     <style>
         /* Minimal login styles for a nicer look */
@@ -105,7 +105,10 @@
         // Debug: error catcher
         window.addEventListener('error', (ev) => {
             console.error('Captured error:', ev.error || ev.message || ev);
-            try { document.getElementById('loginMessage')?.textContent = (ev.error?.message || ev.message || 'Error'); } catch(e){}
+            try {
+                const lm = document.getElementById('loginMessage');
+                if (lm) lm.textContent = (ev.error?.message || ev.message || 'Error');
+            } catch(e){}
         });
         window.addEventListener('unhandledrejection', (ev) => {
             console.error('Unhandled rejection:', ev.reason || ev);
@@ -113,6 +116,12 @@
 
         // Only register SW when site is served via http(s)
         const allowed = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+        if (allowed) {
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = 'manifest.json';
+            document.head.appendChild(link);
+        }
         if (allowed && 'serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(() => console.log('SW registered')).catch(e => console.warn('SW reg fail', e));
