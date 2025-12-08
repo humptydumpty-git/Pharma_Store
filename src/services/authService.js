@@ -1,6 +1,5 @@
 // Authentication service
 import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { hashPassword, verifyPassword } from '../utils/security.js';
 
 const auth = getAuth();
 

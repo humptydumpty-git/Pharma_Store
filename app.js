@@ -123,6 +123,7 @@ class PharmaStore {
         try {
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
+            const userTypeSelect = document.getElementById('userType');
             const loginMessage = document.getElementById('loginMessage');
 
             if (!usernameInput || !passwordInput || !loginMessage) {
@@ -132,6 +133,7 @@ class PharmaStore {
 
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
+            const selectedType = userTypeSelect ? userTypeSelect.value : '';
 
             // Basic validation
             if (!username || !password) {
@@ -142,9 +144,11 @@ class PharmaStore {
             }
 
             // Find user in the users array
-            const user = this.users.find(u => 
-                u.username === username
-            );
+            const user = this.users.find(u => {
+                if (u.username !== username) return false;
+                if (selectedType && u.type !== selectedType) return false;
+                return true;
+            });
 
             if (user) {
                 const hashedInput = await this.hashString(password);
@@ -311,6 +315,19 @@ class PharmaStore {
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await this.handleLogin();
+            });
+        }
+
+        const demoBtn = document.getElementById('demoCreds');
+        if (demoBtn && loginForm) {
+            demoBtn.addEventListener('click', () => {
+                const usernameInput = document.getElementById('username');
+                const passwordInput = document.getElementById('password');
+                const userTypeSelect = document.getElementById('userType');
+                if (usernameInput) usernameInput.value = 'admin';
+                if (passwordInput) passwordInput.value = 'password123';
+                if (userTypeSelect) userTypeSelect.value = 'admin';
+                loginForm.dispatchEvent(new Event('submit'));
             });
         }
 
@@ -1126,7 +1143,8 @@ class PharmaStore {
             const drugs = items.map(i=>i.drugName).join(', ');
             const qty = items.reduce((s,i)=>s+i.qty,0);
             const total = items.reduce((s,i)=>s+i.total,0).toFixed(2);
-            tr.innerHTML = `<td>${date}</td><td>${drugs}</td><td>${qty}</td><td>$${total}</td><td>$${total}</td><td>${document.getElementById('multiSaleCustomerName')?.value || 'Walk-in'}</td><td></td>`;
+            const customer = document.getElementById('multiSaleCustomerName')?.value || 'Walk-in';
+            tr.innerHTML = `<td>${date}</td><td>${drugs}</td><td>${qty}</td><td>-</td><td>$${total}</td><td>${customer}</td>`;
             tbody.prepend(tr);
         }
     }

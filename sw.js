@@ -2,7 +2,7 @@ const CACHE_NAME = 'pharmastore-v1.0.0';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/styles.css',
+  '/style.css',
   '/app.js',
   '/manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
@@ -20,7 +20,13 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Service Worker: Caching files');
-        return cache.addAll(urlsToCache);
+        return Promise.all(
+          urlsToCache.map((url) =>
+            cache.add(url).catch((error) => {
+              console.log('Service Worker: Failed to cache', url, error);
+            })
+          )
+        );
       })
       .catch((error) => {
         console.log('Service Worker: Cache failed', error);
@@ -80,9 +86,8 @@ self.addEventListener('fetch', (event) => {
             return fetchResponse;
           })
           .catch(() => {
-            // Return offline page for navigation requests
             if (event.request.destination === 'document') {
-              return caches.match('/index.html');
+              return caches.match('/offline.html');
             }
           });
       })
