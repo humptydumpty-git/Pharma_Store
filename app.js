@@ -98,9 +98,29 @@ class PharmaStore {
 
     async passwordMatches(user, plainPassword, hashedInput) {
         if (user.passwordHash) {
-            return user.passwordHash === hashedInput;
+            const variants = await this.hashVariants(plainPassword);
+            return variants.includes(user.passwordHash);
         }
         return user.password === plainPassword;
+    }
+
+    async hashVariants(value) {
+        if (!value) return [''];
+        const encoder = new TextEncoder();
+        const data = encoder.encode(value);
+        const results = [];
+        try {
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            const sha = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+            results.push(sha);
+        } catch (_) {}
+        let hash = 0;
+        for (let i = 0; i < value.length; i++) {
+            hash = ((hash << 5) - hash) + value.charCodeAt(i);
+            hash |= 0;
+        }
+        results.push(hash.toString(16));
+        return results;
     }
 
     async ensureLegacyPasswordHashes() {
