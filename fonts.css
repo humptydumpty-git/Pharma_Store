@@ -1,0 +1,42 @@
+/* Local font definitions for offline Inter usage.
+ *
+ * Instructions:
+ * 1. Create the folder: ./assets/fonts
+ * 2. Download Inter webfonts (WOFF2 is recommended) from the official source
+ *    (e.g. Google Fonts or rsms.me) and place them in ./assets/fonts with
+ *    the filenames used below, or update the src: URLs to match your files.
+ */
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    src: url('./assets/fonts/Inter-Regular.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 500;
+    src: url('./assets/fonts/Inter-Medium.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 600;
+    src: url('./assets/fonts/Inter-SemiBold.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 700;
+    src: url('./assets/fonts/Inter-Bold.woff2') format('woff2');
+    font-display: swap;
+}
+
+

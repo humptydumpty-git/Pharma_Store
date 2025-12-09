@@ -1,0 +1,71 @@
+/* Local Font Awesome-like icon setup for offline usage.
+ *
+ * Instructions:
+ * 1. Create the folder: ./assets/icons
+ * 2. Download the Font Awesome 6 Free "fa-solid-900.woff2" file (or another
+ *    solid font file) and place it at:
+ *       ./assets/icons/fa-solid-900.woff2
+ *    OR adjust the src: URL below to match your filename.
+ *
+ * 3. This file only wires up the small subset of icons used in this project.
+ *    If you add more icons, you can extend the mapping section with additional
+ *    .fa-ICON-NAME::before rules and the correct Unicode from Font Awesome.
+ */
+
+@font-face {
+    font-family: "Font Awesome 6 Free";
+    font-style: normal;
+    font-weight: 900;
+    src: url("./assets/icons/fa-solid-900.woff2") format("woff2");
+    font-display: block;
+}
+
+.fa,
+.fas {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-style: normal;
+    display: inline-block;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Minimal icon mapping subset (Font Awesome 6 Free) */
+
+.fa-pills::before { content: "\f484"; }
+.fa-sign-in-alt::before { content: "\f2f6"; }      /* alias / older name */
+.fa-magic::before { content: "\f0d0"; }
+.fa-chart-line::before { content: "\f201"; }
+.fa-capsules::before { content: "\f46b"; }
+.fa-cash-register::before { content: "\f788"; }
+.fa-warehouse::before { content: "\f494"; }
+.fa-wallet::before { content: "\f555"; }
+.fa-user-tie::before { content: "\f508"; }
+.fa-file-alt::before { content: "\f15c"; }
+.fa-chart-pie::before { content: "\f200"; }
+.fa-clipboard-list::before { content: "\f46d"; }
+.fa-user-shield::before { content: "\f505"; }
+.fa-exclamation-triangle::before { content: "\f071"; }
+.fa-stopwatch::before { content: "\f2f2"; }
+.fa-search::before { content: "\f002"; }
+.fa-plus::before { content: "\f067"; }
+.fa-save::before { content: "\f0c7"; }
+.fa-times::before { content: "\f00d"; }
+.fa-receipt::before { content: "\f543"; }
+.fa-print::before { content: "\f02f"; }
+.fa-pen::before { content: "\f304"; }
+.fa-plus-circle::before { content: "\f055"; }
+.fa-user-plus::before { content: "\f234"; }
+.fa-camera::before { content: "\f030"; }
+.fa-circle::before { content: "\f111"; }
+.fa-trash::before { content: "\f1f8"; }
+.fa-file-export::before { content: "\f56e"; }
+.fa-file-import::before { content: "\f56f"; }
+.fa-chart-bar::before { content: "\f080"; }
+.fa-filter::before { content: "\f0b0"; }
+.fa-undo::before { content: "\f0e2"; }
+.fa-money-check-alt::before { content: "\f53d"; }
+.fa-key::before { content: "\f084"; }
+.fa-sign-out-alt::before { content: "\f2f5"; }
+
+
