@@ -138,6 +138,22 @@ class PharmaStore {
         }
     }
 
+    // Emergency: clear all local data and restore default users (for login issues)
+    resetLocalData() {
+        if (!window.confirm('This will clear ALL saved data on this browser (drugs, sales, users, petty cash, etc.) and restore defaults. Continue?')) {
+            return;
+        }
+        try {
+            localStorage.clear();
+        } catch (e) {
+            console.error('Error clearing localStorage', e);
+        }
+        this.showMessage('Local data cleared. Reloading...', 'info');
+        setTimeout(() => {
+            window.location.reload();
+        }, 500);
+    }
+
     // Authentication
     async handleLogin() {
         try {
@@ -349,6 +365,12 @@ class PharmaStore {
                 if (userTypeSelect) userTypeSelect.value = 'admin';
                 loginForm.dispatchEvent(new Event('submit'));
             });
+        }
+
+        // Optional: reset local data from login screen
+        const resetDataBtn = document.getElementById('resetDataBtn');
+        if (resetDataBtn) {
+            resetDataBtn.addEventListener('click', () => this.resetLocalData());
         }
 
         // Logout button
