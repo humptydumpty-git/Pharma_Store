@@ -159,7 +159,6 @@ class PharmaStore {
         try {
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
-            const userTypeSelect = document.getElementById('userType');
             const loginMessage = document.getElementById('loginMessage');
 
             if (!usernameInput || !passwordInput || !loginMessage) {
@@ -169,7 +168,6 @@ class PharmaStore {
 
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
-            const selectedType = userTypeSelect ? userTypeSelect.value : '';
 
             // Basic validation
             if (!username || !password) {
@@ -179,12 +177,8 @@ class PharmaStore {
                 return false;
             }
 
-            // Find user in the users array
-            const user = this.users.find(u => {
-                if (u.username !== username) return false;
-                if (selectedType && u.type !== selectedType) return false;
-                return true;
-            });
+            // Find user in the users array (match by username only; role is fixed per account)
+            const user = this.users.find(u => u.username === username);
 
             if (user) {
                 const hashedInput = await this.hashString(password);
@@ -351,19 +345,6 @@ class PharmaStore {
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await this.handleLogin();
-            });
-        }
-
-        const demoBtn = document.getElementById('demoCreds');
-        if (demoBtn && loginForm) {
-            demoBtn.addEventListener('click', () => {
-                const usernameInput = document.getElementById('username');
-                const passwordInput = document.getElementById('password');
-                const userTypeSelect = document.getElementById('userType');
-                if (usernameInput) usernameInput.value = 'admin';
-                if (passwordInput) passwordInput.value = 'password123';
-                if (userTypeSelect) userTypeSelect.value = 'admin';
-                loginForm.dispatchEvent(new Event('submit'));
             });
         }
 

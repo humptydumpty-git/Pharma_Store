@@ -38,21 +38,10 @@
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" required placeholder="Enter password" autocomplete="current-password" />
 
-                <label for="userType">Role (optional)</label>
-                <select id="userType" name="userType" aria-label="User Type">
-                    <option value="">Any</option>
-                    <option value="admin">Admin</option>
-                    <option value="user">User</option>
-                </select>
-
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-sign-in-alt"></i>
                         <span>Login</span>
-                    </button>
-                    <button type="button" class="btn btn-secondary" title="Fill demo credentials" id="demoCreds">
-                        <i class="fas fa-magic"></i>
-                        <span>Demo Login</span>
                     </button>
                 </div>
                 <div id="loginMessage" class="message info" aria-live="polite" style="display:none;"></div>
@@ -146,6 +135,10 @@
                         <i class="fas fa-user-shield"></i>
                         <span>Admin</span>
                     </button>
+                    <button class="nav-btn" data-section="help" type="button">
+                        <i class="fas fa-question-circle"></i>
+                        <span>Help</span>
+                    </button>
                 </nav>
             </aside>
 
@@ -185,6 +178,58 @@
                             <p class="section-description">Drugs expiring within 30 days.</p>
                             <h2 id="expiringSoon">0</h2>
                         </div>
+                    </div>
+                </section>
+
+                <!-- Help / Backup Guide Section -->
+                <section id="help" class="content-section" aria-label="Help & Backup Guide">
+                    <div class="section-header">
+                        <div>
+                            <h2>Help & Backup Guide</h2>
+                            <p class="section-description">Simple steps your staff can follow to keep data safe and recover it if needed.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-container">
+                        <h3>Daily / Weekly Backup</h3>
+                        <p class="section-description">
+                            The system stores everything (drugs, sales, petty cash, payroll, users) in this computer&apos;s browser.
+                            To protect against hardware failure, export a backup file regularly and keep it on a safe drive.
+                        </p>
+                        <ol>
+                            <li>Go to the <strong>Reports</strong> or <strong>Admin</strong> section.</li>
+                            <li>Click <strong>Export Data</strong>.</li>
+                            <li>Save the file (for example: <code>pharmastore-backup-2025-12-09.json</code>) to:
+                                a USB drive, external hard disk, or secure cloud folder.</li>
+                            <li>Label the drive/folder clearly (e.g. <strong>PharmaStore Backups</strong>).</li>
+                        </ol>
+                    </div>
+
+                    <div class="form-container">
+                        <h3>Restore From Backup</h3>
+                        <p class="section-description">
+                            If you move to a new computer or the data on this browser is cleared, you can restore from the exported file.
+                        </p>
+                        <ol>
+                            <li>Open PharmaStore in the browser.</li>
+                            <li>Log in as an <strong>admin</strong>.</li>
+                            <li>Go to the <strong>Reports</strong> or <strong>Admin</strong> section.</li>
+                            <li>Click <strong>Import Data</strong>.</li>
+                            <li>Select the most recent backup JSON file.</li>
+                            <li>Confirm the prompt to replace current data with the backup.</li>
+                        </ol>
+                        <p class="section-description">
+                            After import, verify that drugs, sales history, petty cash, employees and users look correct.
+                        </p>
+                    </div>
+
+                    <div class="form-container">
+                        <h3>Tips & Best Practices</h3>
+                        <ul>
+                            <li>Keep at least one backup <strong>off-site</strong> (not on the same PC).</li>
+                            <li>Do a test restore on a spare machine before relying on backups for the first time.</li>
+                            <li>Only trusted staff should have access to backup files and the admin login.</li>
+                        </ul>
                     </div>
                 </section>
 
@@ -280,12 +325,12 @@
                         </div>
                     </div>
 
-                    <!-- Hidden template select (populated by app.js) -->
-                    <div id="saleTemplates" style="display:none;">
-                        <select id="saleDrug">
-                            <option value="">Select Drug</option>
-                        </select>
-                    </div>
+            <!-- Hidden template select (populated by app.js) -->
+            <div id="saleTemplates" style="display:none;">
+                <select id="saleDrug">
+                    <option value="">Select Drug</option>
+                </select>
+            </div>
 
                     <div class="sales-form-container">
                         <div class="sale-summary-panel">
@@ -359,7 +404,7 @@
 
                         <div class="table-container">
                             <table class="sale-items-table">
-                                <thead>
+                <thead>
                                     <tr>
                                         <th>Drug</th>
                                         <th>Qty</th>
@@ -367,10 +412,10 @@
                                         <th>Line Total</th>
                                         <th>Action</th>
                                     </tr>
-                                </thead>
+                </thead>
                                 <tbody id="saleItemsBody"></tbody>
-                            </table>
-                        </div>
+            </table>
+            </div>
 
                         <div id="receiptContainer" class="receipt-container" style="display:none;">
                             <div class="receipt-header">
@@ -385,7 +430,7 @@
                             </div>
                             <div id="receiptContent"></div>
                         </div>
-                    </div>
+            </div>
 
                     <div class="table-container">
                         <h3>Recent Sales</h3>
@@ -401,8 +446,8 @@
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="salesTableBody"></tbody>
-                        </table>
+                <tbody id="salesTableBody"></tbody>
+            </table>
                     </div>
                 </section>
 
@@ -987,7 +1032,7 @@
                             <tbody id="usersTableBody"></tbody>
                         </table>
                     </div>
-                </section>
+        </section>
 
                 <!-- Change Password Modal -->
                 <div id="changePasswordModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">

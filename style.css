@@ -1434,3 +1434,49 @@ tr:hover {
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
+
+/* ===== PRINT STYLES (RECEIPTS & REPORTS) ===== */
+@media print {
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    /* Hide non-print UI chrome */
+    .app-header,
+    .sidebar,
+    .nav-menu,
+    .nav-btn,
+    .logout-btn,
+    .theme-switcher,
+    .dashboard-stats,
+    .report-filters,
+    .sale-summary-panel,
+    .sale-finance-panel,
+    .sale-control-bar,
+    .form-actions,
+    #loginScreen,
+    #appMessage {
+        display: none !important;
+    }
+
+    /* Expand main content and key printable blocks */
+    .main-content,
+    .receipt-container,
+    .report-container {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
+    .receipt-container,
+    .report-container {
+        page-break-inside: avoid;
+    }
+
+    table {
+        font-size: 11px;
+    }
+}
