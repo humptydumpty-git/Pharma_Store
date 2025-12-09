@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>PharmaStore Management System</title>
 
+    <!-- Inter font for modern UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -15,86 +20,1004 @@
 
     <meta name="theme-color" content="#667eea">
     <!-- Manifest is injected via script for allowed protocols -->
-
-    <style>
-        /* Minimal login styles for a nicer look */
-        body { font-family: Inter, Roboto, Arial, sans-serif; margin:0; background: #f3f4f6; color:#111827; }
-        .login-container { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
-        .login-card { width: min(420px, 96%); background:#fff; border-radius:10px; padding:20px; box-shadow: 0 6px 28px rgba(0,0,0,0.08); }
-        .login-card h2 { margin:0 0 12px; font-size:1.2rem; color:#0f172a; }
-        .login-card input, .login-card select { width:100%; padding:10px; margin-bottom:10px; border:1px solid #e6e9ee; border-radius:8px; }
-        .btn-primary { background:#4f46e5; color:#fff; padding:10px 12px; border-radius:8px; border:none; cursor:pointer; font-weight:600; }
-        .btn-secondary { padding:8px 10px; background:#eef2ff; border:1px solid #dbeafe; cursor:pointer; border-radius:8px; }
-        .form-message { margin-top:8px; font-size:0.9rem; min-height:18px; color:#dc2626; }
-        .main-app { display:none; padding:18px; }
-    </style>
 </head>
 <body>
     <!-- Login Screen -->
     <div id="loginScreen" class="login-container" role="dialog" aria-labelledby="loginTitle" aria-modal="true">
         <div class="login-card" role="document">
-            <h2 id="loginTitle"><i class="fas fa-pills"></i> PharmaStore Sign in</h2>
+            <div class="login-brand">
+                <div class="login-logo">
+                    <i class="fas fa-pills"></i>
+                </div>
+                <div>
+                    <h2 id="loginTitle" class="login-form-title">PharmaStore</h2>
+                    <p class="login-hint">Secure offline pharmacy management</p>
+                </div>
+            </div>
 
-            <form id="loginForm" autocomplete="on" novalidate>
-                <input id="username" name="username" type="text" required placeholder="Username" autocomplete="username" />
-                <input id="password" name="password" type="password" required placeholder="Password" autocomplete="current-password" />
+            <form id="loginForm" class="login-form" autocomplete="on" novalidate>
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" required placeholder="Enter username" autocomplete="username" />
+
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" required placeholder="Enter password" autocomplete="current-password" />
+
+                <label for="userType">Role (optional)</label>
                 <select id="userType" name="userType" aria-label="User Type">
                     <option value="">Any</option>
                     <option value="admin">Admin</option>
                     <option value="user">User</option>
                 </select>
 
-                <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
-                    <button type="submit" class="btn-primary">Login</button>
-                    <button type="button" class="btn-secondary" title="Fill demo credentials" id="demoCreds">Demo</button>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Login</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" title="Fill demo credentials" id="demoCreds">
+                        <i class="fas fa-magic"></i>
+                        <span>Demo Login</span>
+                    </button>
                 </div>
-                <div id="loginMessage" class="form-message" aria-live="polite"></div>
+                <div id="loginMessage" class="message info" aria-live="polite" style="display:none;"></div>
             </form>
         </div>
     </div>
 
-    <!-- Main Application -->
-    <div id="mainApp" class="main-app">
-        <header style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <div><strong>PharmaStore</strong></div>
-            <div>Logged in as: <span id="currentUser"></span></div>
+    <!-- Main Application Shell -->
+    <div id="mainApp" class="app-root" style="display:none;">
+        <!-- App Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <i class="fas fa-pills" aria-hidden="true"></i>
+                <div>
+                    <h1>PharmaStore</h1>
+                    <span class="text-muted">Offline drugstore management</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="sync-status">
+                    <div id="syncStatus" class="status-indicator offline">
+                        <i class="fas fa-circle"></i>
+                        <span>Offline</span>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <span id="currentUser">Guest</span>
+                </div>
+                <button id="changePasswordBtn" class="btn-secondary" type="button">
+                    <i class="fas fa-key"></i>
+                    <span>Change Password</span>
+                </button>
+                <button id="logoutBtn" class="logout-btn" type="button">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+                <button id="themeSwitcher" class="theme-switcher" type="button" aria-label="Toggle theme">
+                    <div class="theme-switcher-slider"></div>
+                </button>
+            </div>
         </header>
 
-        <!-- Sales Section (multi-item sale UI + recent sales) -->
-        <section id="sales" class="content-section">
-            <h3>Sales</h3>
+        <div class="app-body">
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar">
+                <nav class="nav-menu" aria-label="Main navigation">
+                    <button class="nav-btn active" data-section="dashboard" type="button">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button class="nav-btn" data-section="drugs" type="button">
+                        <i class="fas fa-capsules"></i>
+                        <span>Drugs</span>
+                    </button>
+                    <button class="nav-btn" data-section="sales" type="button">
+                        <i class="fas fa-cash-register"></i>
+                        <span>Sales</span>
+                    </button>
+                    <button class="nav-btn" data-section="stockAdjustment" type="button">
+                        <i class="fas fa-warehouse"></i>
+                        <span>Stock</span>
+                    </button>
+                    <button class="nav-btn" data-section="pettyCash" type="button">
+                        <i class="fas fa-wallet"></i>
+                        <span>Petty Cash</span>
+                    </button>
+                    <button class="nav-btn admin-only" data-section="payroll" type="button">
+                        <i class="fas fa-user-tie"></i>
+                        <span>Payroll</span>
+                    </button>
+                    <button class="nav-btn" data-section="reports" type="button">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Reports</span>
+                    </button>
+                    <button class="nav-btn" data-section="analytics" type="button">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Analytics</span>
+                    </button>
+                    <button class="nav-btn admin-only" data-section="audit" type="button">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>Audit</span>
+                    </button>
+                    <button class="nav-btn admin-only" data-section="admin" type="button">
+                        <i class="fas fa-user-shield"></i>
+                        <span>Admin</span>
+                    </button>
+                </nav>
+            </aside>
 
-            <!-- Hidden template select (populated by app.js) -->
-            <div id="saleTemplates" style="display:none;">
-                <select id="saleDrug">
-                    <option value="">Select Drug</option>
-                </select>
-            </div>
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="content-section active" aria-label="Dashboard">
+                    <div class="section-header">
+                        <div>
+                            <h2>Dashboard</h2>
+                            <p class="section-description">High-level view of your pharmacy performance.</p>
+                        </div>
+                    </div>
 
-            <table class="sale-items-table" style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr><th>Drug</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Action</th></tr>
-                </thead>
-                <tbody id="saleItemsBody">
-                </tbody>
-            </table>
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <i class="fas fa-capsules"></i>
+                            <h3>Total Drugs</h3>
+                            <p class="section-description">Number of items in inventory.</p>
+                            <h2 id="totalDrugs">0</h2>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3>Low Stock</h3>
+                            <p class="section-description">Drugs at or below threshold.</p>
+                            <h2 id="lowStock">0</h2>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-cash-register"></i>
+                            <h3>Today&apos;s Sales</h3>
+                            <p class="section-description">Total sales processed today.</p>
+                            <h2 id="todaySales">$0.00</h2>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-stopwatch"></i>
+                            <h3>Expiring Soon</h3>
+                            <p class="section-description">Drugs expiring within 30 days.</p>
+                            <h2 id="expiringSoon">0</h2>
+                        </div>
+                    </div>
+                </section>
 
-            <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
-                <button id="addSaleItemBtn" class="btn-secondary">Add Item</button>
-                <div style="margin-left:auto;"><strong>Subtotal: $<span id="saleSubtotal">0.00</span></strong></div>
-                <button id="processMultiSaleBtn" class="btn-primary">Process Sale</button>
-            </div>
+                <!-- Drugs Section -->
+                <section id="drugs" class="content-section" aria-label="Drug Management">
+                    <div class="section-header">
+                        <div>
+                            <h2>Drug Inventory</h2>
+                            <p class="section-description">Maintain accurate, up-to-date drug records.</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input id="drugSearch" type="search" placeholder="Search drugs..." />
+                            </div>
+                            <button type="button" class="action-btn" onclick="toggleDrugForm()">
+                                <i class="fas fa-plus"></i>
+                                <span>Add Drug</span>
+                            </button>
+                        </div>
+                    </div>
 
-            <div id="receiptContainer" style="display:none; margin-top:12px;">
-                <div id="receiptContent" style="background:#fff; padding:12px; border-radius:8px; border:1px solid #e6e9ee;"></div>
-            </div>
+                    <div id="drugForm" class="form-container" style="display:none;">
+                        <form id="drugFormElement">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="drugName">Drug Name</label>
+                                    <input id="drugName" type="text" required placeholder="e.g. Amoxicillin 500mg" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="drugCategory">Category</label>
+                                    <input id="drugCategory" type="text" required placeholder="e.g. Antibiotic" />
+                                </div>
+                            </div>
 
-            <h4 style="margin-top:18px;">Recent Sales</h4>
-            <table id="salesTable" style="width:100%; border-collapse:collapse;">
-                <thead><tr><th>Date</th><th>Drug</th><th>Qty</th><th>Price</th><th>Total</th><th>Customer</th></tr></thead>
-                <tbody id="salesTableBody"></tbody>
-            </table>
-        </section>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="drugQuantity">Quantity in Stock</label>
+                                    <input id="drugQuantity" type="number" min="0" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="drugPrice">Unit Price ($)</label>
+                                    <input id="drugPrice" type="number" step="0.01" min="0" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="drugExpiry">Expiry Date</label>
+                                    <input id="drugExpiry" type="date" required />
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="drugSupplier">Supplier</label>
+                                <input id="drugSupplier" type="text" placeholder="Optional supplier name" />
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    <span>Save Drug</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="cancelDrugForm()">
+                                    <i class="fas fa-times"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>Expiry</th>
+                                    <th>Supplier</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drugTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Sales Section -->
+                <section id="sales" class="content-section" aria-label="Sales">
+                    <div class="section-header">
+                        <div>
+                            <h2>Sales</h2>
+                            <p class="section-description">Process multi-item sales with live totals and receipts.</p>
+                        </div>
+                    </div>
+
+                    <!-- Hidden template select (populated by app.js) -->
+                    <div id="saleTemplates" style="display:none;">
+                        <select id="saleDrug">
+                            <option value="">Select Drug</option>
+                        </select>
+                    </div>
+
+                    <div class="sales-form-container">
+                        <div class="sale-summary-panel">
+                            <div class="summary-chip">
+                                <span>Subtotal</span>
+                                <strong>$<span id="saleSubtotal">0.00</span></strong>
+                            </div>
+                            <div class="summary-chip">
+                                <span id="saleTaxLabel">Tax (0.0%)</span>
+                                <strong>$<span id="saleTax">0.00</span></strong>
+                            </div>
+                            <div class="summary-chip">
+                                <span>Discount</span>
+                                <strong>$<span id="saleDiscount">0.00</span></strong>
+                            </div>
+                            <div class="summary-chip emphasis">
+                                <span>Grand Total</span>
+                                <strong>$<span id="saleGrandTotal">0.00</span></strong>
+                            </div>
+                            <div class="summary-chip">
+                                <span>Change Due</span>
+                                <strong>$<span id="saleChangeDue">0.00</span></strong>
+                            </div>
+                        </div>
+
+                        <div class="sale-finance-panel">
+                            <div class="form-group">
+                                <label for="taxRateInput">Sales Tax (%)</label>
+                                <input id="taxRateInput" type="number" step="0.1" min="0" />
+                            </div>
+                            <div class="form-group">
+                                <label for="discountRateInput">Discount (%)</label>
+                                <input id="discountRateInput" type="number" step="0.1" min="0" max="100" />
+                            </div>
+                            <div class="form-group">
+                                <label for="cashReceivedInput">Cash Received ($)</label>
+                                <input id="cashReceivedInput" type="number" step="0.01" min="0" />
+                            </div>
+                        </div>
+
+                        <div class="sale-control-bar">
+                            <div class="live-total-pill">
+                                <span>Items</span>
+                                <strong><span id="saleItemCount">0</span> lines / <span id="saleUnitCount">0</span> units</strong>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="multiSaleCustomerName">Customer</label>
+                                    <input id="multiSaleCustomerName" type="text" placeholder="Walk-in Customer" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="multiSalePaymentMethod">Payment Method</label>
+                                    <select id="multiSalePaymentMethod">
+                                        <option value="Cash">Cash</option>
+                                        <option value="POS">POS</option>
+                                        <option value="Transfer">Transfer</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button id="addSaleItemBtn" type="button" class="btn btn-secondary">
+                                    <i class="fas fa-plus"></i>
+                                    <span>Add Item</span>
+                                </button>
+                                <button id="processMultiSaleBtn" type="button" class="btn btn-primary">
+                                    <i class="fas fa-receipt"></i>
+                                    <span>Process Sale</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="sale-items-table">
+                                <thead>
+                                    <tr>
+                                        <th>Drug</th>
+                                        <th>Qty</th>
+                                        <th>Unit Price</th>
+                                        <th>Line Total</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="saleItemsBody"></tbody>
+                            </table>
+                        </div>
+
+                        <div id="receiptContainer" class="receipt-container" style="display:none;">
+                            <div class="receipt-header">
+                                <div>
+                                    <h3>Receipt</h3>
+                                    <p class="section-description">Thank you for your patronage.</p>
+                                </div>
+                                <button type="button" class="btn btn-secondary" onclick="printReceipt()">
+                                    <i class="fas fa-print"></i>
+                                    <span>Print</span>
+                                </button>
+                            </div>
+                            <div id="receiptContent"></div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Recent Sales</h3>
+                        <table id="salesTable">
+                            <thead>
+                                <tr>
+                                    <th>Date / Time</th>
+                                    <th>Drug</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                    <th>Customer</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salesTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Stock Adjustment Section -->
+                <section id="stockAdjustment" class="content-section" aria-label="Stock Adjustment">
+                    <div class="section-header">
+                        <div>
+                            <h2>Stock Adjustment</h2>
+                            <p class="section-description">Manually correct stock levels with a full audit trail.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-container">
+                        <form id="stockAdjustmentForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="adjustmentDrug">Drug</label>
+                                    <select id="adjustmentDrug" required>
+                                        <option value="">Select Drug</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="adjustmentType">Adjustment Type</label>
+                                    <select id="adjustmentType" required>
+                                        <option value="increase">Increase</option>
+                                        <option value="decrease">Decrease</option>
+                                        <option value="set">Set Exact</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="adjustmentQuantity">Quantity</label>
+                                    <input id="adjustmentQuantity" type="number" min="1" required />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Current Stock</label>
+                                    <div><strong id="adjustmentCurrentStock">0</strong></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="adjustmentReason">Reason</label>
+                                    <select id="adjustmentReason" required>
+                                        <option value="">Select Reason</option>
+                                        <option value="New Stock">New Stock</option>
+                                        <option value="Damage / Loss">Damage / Loss</option>
+                                        <option value="Audit Correction">Audit Correction</option>
+                                        <option value="Expiry">Expiry</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="adjustmentNotes">Notes (optional)</label>
+                                <textarea id="adjustmentNotes" rows="2" placeholder="Add any additional details..."></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-check"></i>
+                                    <span>Apply Adjustment</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Adjustment History</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Drug</th>
+                                    <th>Old Qty</th>
+                                    <th>Adjustment</th>
+                                    <th>New Qty</th>
+                                    <th>Reason</th>
+                                    <th>Notes</th>
+                                    <th>By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stockAdjustmentsTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Petty Cash Section -->
+                <section id="pettyCash" class="content-section" aria-label="Petty Cash">
+                    <div class="section-header">
+                        <div>
+                            <h2>Petty Cash</h2>
+                            <p class="section-description">Track small daily expenses with running balance.</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <div class="summary-chip">
+                                <span>Current Balance</span>
+                                <strong>$<span id="pettyCashBalanceDisplay">0.00</span></strong>
+                            </div>
+                            <button id="updatePettyCashBalance" type="button" class="btn btn-secondary">
+                                <i class="fas fa-pen"></i>
+                                <span>Update Balance</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="updateBalanceForm" class="form-container" style="display:none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="newBalance">New Balance ($)</label>
+                                <input id="newBalance" type="number" step="0.01" min="0" />
+                            </div>
+                            <div class="form-group">
+                                <label for="balanceNotes">Notes</label>
+                                <input id="balanceNotes" type="text" placeholder="Reason for balance adjustment" />
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-primary" onclick="savePettyCashBalance()">
+                                <i class="fas fa-save"></i>
+                                <span>Save Balance</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="cancelBalanceUpdate()">
+                                <i class="fas fa-times"></i>
+                                <span>Cancel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-container">
+                        <form id="pettyCashForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="expenseDate">Date</label>
+                                    <input id="expenseDate" type="date" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="expenseCategory">Category</label>
+                                    <select id="expenseCategory" required>
+                                        <option value="">Select Category</option>
+                                        <option value="Utilities">Utilities</option>
+                                        <option value="Transport">Transport</option>
+                                        <option value="Stationery">Stationery</option>
+                                        <option value="Miscellaneous">Miscellaneous</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="expenseAmount">Amount ($)</label>
+                                    <input id="expenseAmount" type="number" step="0.01" min="0" required />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="expenseDescription">Description</label>
+                                    <input id="expenseDescription" type="text" required placeholder="e.g. Generator fuel" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="expensePaymentMethod">Payment Method</label>
+                                    <select id="expensePaymentMethod" required>
+                                        <option value="">Select Method</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Transfer">Transfer</option>
+                                        <option value="POS">POS</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="expenseNotes">Notes (optional)</label>
+                                <textarea id="expenseNotes" rows="2"></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>Add Expense</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Petty Cash History</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Notes</th>
+                                    <th>Recorded By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pettyCashTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Payroll Section (Admin) -->
+                <section id="payroll" class="content-section admin-only" aria-label="Payroll">
+                    <div class="section-header">
+                        <div>
+                            <h2>Payroll</h2>
+                            <p class="section-description">Manage employees and salary payments.</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <button type="button" class="action-btn" onclick="toggleEmployeeForm()">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Add Employee</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="employeeForm" class="form-container" style="display:none;">
+                        <form>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="employeeName">Name</label>
+                                    <input id="employeeName" type="text" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="employeePosition">Position</label>
+                                    <input id="employeePosition" type="text" required />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="employeeSalary">Monthly Salary ($)</label>
+                                    <input id="employeeSalary" type="number" step="0.01" min="0" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="employeeStartDate">Start Date</label>
+                                    <input id="employeeStartDate" type="date" required />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="employeePhone">Phone</label>
+                                    <input id="employeePhone" type="tel" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="employeeEmail">Email</label>
+                                    <input id="employeeEmail" type="email" />
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" onclick="event.preventDefault(); pharmaStore && pharmaStore.handleAddEmployee();">
+                                    <i class="fas fa-save"></i>
+                                    <span>Save Employee</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="cancelEmployeeForm()">
+                                    <i class="fas fa-times"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Employees</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Position</th>
+                                    <th>Salary</th>
+                                    <th>Phone</th>
+                                    <th>Start Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeesTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-container">
+                        <h3>Process Salary Payment</h3>
+                        <form id="salaryPaymentForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="paymentEmployee">Employee</label>
+                                    <select id="paymentEmployee" required></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="paymentMonth">Month</label>
+                                    <input id="paymentMonth" type="month" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="paymentAmount">Amount ($)</label>
+                                    <input id="paymentAmount" type="number" step="0.01" min="0" required />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="paymentMethod">Payment Method</label>
+                                    <select id="paymentMethod" required>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Transfer">Transfer</option>
+                                        <option value="POS">POS</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="paymentNotes">Notes</label>
+                                    <input id="paymentNotes" type="text" />
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-money-check-alt"></i>
+                                    <span>Record Payment</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Salary Payments</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Employee</th>
+                                    <th>Position</th>
+                                    <th>Month</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Notes</th>
+                                    <th>Processed By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salaryPaymentsTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Reports Section -->
+                <section id="reports" class="content-section" aria-label="Reports">
+                    <div class="section-header">
+                        <div>
+                            <h2>Reports</h2>
+                            <p class="section-description">Generate printable sales and inventory reports.</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <button type="button" class="btn btn-secondary" onclick="exportData()">
+                                <i class="fas fa-file-export"></i>
+                                <span>Export Data</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="importData()">
+                                <i class="fas fa-file-import"></i>
+                                <span>Import Data</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="report-filters">
+                        <div class="filter-group">
+                            <label for="reportType">Report Type</label>
+                            <select id="reportType">
+                                <option value="daily">Daily Sales</option>
+                                <option value="weekly">Weekly Sales</option>
+                                <option value="monthly">Monthly Sales</option>
+                                <option value="yearly">Yearly Sales</option>
+                                <option value="inventory">Inventory</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="reportDate">Base Date</label>
+                            <input id="reportDate" type="date" />
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" onclick="generateReport()">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>Generate</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="printReport()">
+                                    <i class="fas fa-print"></i>
+                                    <span>Print</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="report-summary">
+                        <div class="summary-item">
+                            <span class="label">Total Sales Amount</span>
+                            <span id="totalSalesAmount">$0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Total Items Sold / Drugs</span>
+                            <span id="totalItemsSold">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Total Transactions / Entries</span>
+                            <span id="totalTransactions">0</span>
+                        </div>
+                    </div>
+
+                    <div id="reportContainer" class="report-container" style="display:none;">
+                        <div class="report-header">
+                            <h3 id="reportTitle">Report</h3>
+                            <span class="text-muted">PharmaStore Management System</span>
+                        </div>
+                        <div id="reportContent"></div>
+                    </div>
+                </section>
+
+                <!-- Analytics Section (placeholder) -->
+                <section id="analytics" class="content-section" aria-label="Analytics">
+                    <div class="section-header">
+                        <div>
+                            <h2>Analytics</h2>
+                            <p class="section-description">Visual insights into sales and inventory (basic placeholder view).</p>
+                        </div>
+                    </div>
+                    <div class="analytics-overview">
+                        <div class="analytics-card">
+                            <h3>Coming Soon</h3>
+                            <p class="section-description">
+                                Advanced charts and KPIs will appear here. The core logic is already wired in
+                                `renderAnalytics()` so you can plug in Chart.js or other libraries later.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Audit Trail Section -->
+                <section id="audit" class="content-section admin-only" aria-label="Audit Trail">
+                    <div class="section-header">
+                        <div>
+                            <h2>Audit Trail</h2>
+                            <p class="section-description">Full record of critical actions for accountability.</p>
+                        </div>
+                    </div>
+
+                    <div class="report-filters">
+                        <div class="filter-group">
+                            <label for="auditUser">User</label>
+                            <input id="auditUser" type="text" placeholder="Filter by user" />
+                        </div>
+                        <div class="filter-group">
+                            <label for="auditAction">Action</label>
+                            <input id="auditAction" type="text" placeholder="Filter by action" />
+                        </div>
+                        <div class="filter-group">
+                            <label for="auditDate">Date</label>
+                            <input id="auditDate" type="date" />
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" onclick="filterAuditTrail()">
+                                    <i class="fas fa-filter"></i>
+                                    <span>Apply Filters</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="clearAuditFilters()">
+                                    <i class="fas fa-undo"></i>
+                                    <span>Clear</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Recent Activity</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-container error-log-panel">
+                        <h3>Application Error Log</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date / Time</th>
+                                    <th>Type</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="errorLogTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Admin Section -->
+                <section id="admin" class="content-section admin-only" aria-label="Admin Panel">
+                    <div class="section-header">
+                        <div>
+                            <h2>Admin Panel</h2>
+                            <p class="section-description">User management and system tools.</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <button type="button" class="admin-btn" onclick="clearAllData()">
+                                <i class="fas fa-trash-alt"></i>
+                                <span>Clear All Data</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-container">
+                        <h3>Add User</h3>
+                        <form id="addUserForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUsername">Username</label>
+                                    <input id="newUsername" type="text" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="newPassword">Password</label>
+                                    <input id="newPassword" type="password" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="newUserType">Role</label>
+                                    <select id="newUserType" required>
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="camera-capture">
+                                <span class="camera-hint">Optional: Capture staff photo for quick recognition.</span>
+                                <video id="userCameraPreview" autoplay playsinline></video>
+                                <canvas id="userPhotoCanvas"></canvas>
+                                <img id="userPhotoPreview" alt="User photo preview" />
+                                <input id="newUserPhoto" type="hidden" />
+                                <div class="camera-actions">
+                                    <button id="startCameraBtn" type="button" class="btn btn-secondary">
+                                        <i class="fas fa-camera"></i>
+                                        <span>Start Camera</span>
+                                    </button>
+                                    <button id="capturePhotoBtn" type="button" class="btn btn-primary" disabled>
+                                        <i class="fas fa-circle"></i>
+                                        <span>Capture</span>
+                                    </button>
+                                    <button id="clearPhotoBtn" type="button" class="btn btn-secondary" disabled>
+                                        <i class="fas fa-trash"></i>
+                                        <span>Clear Photo</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Create User</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="cancelEditUser()">
+                                    <i class="fas fa-times"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Users</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Created</th>
+                                    <th>Photo</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Change Password Modal -->
+                <div id="changePasswordModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
+                    <div class="modal-content">
+                        <h3 id="changePasswordTitle">Change Password</h3>
+                        <form id="changePasswordForm">
+                            <div class="form-group">
+                                <label for="currentPassword">Current Password</label>
+                                <input id="currentPassword" type="password" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword1">New Password</label>
+                                <input id="newPassword1" type="password" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword2">Confirm New Password</label>
+                                <input id="newPassword2" type="password" required />
+                            </div>
+                            <div class="modal-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    <span>Update</span>
+                                </button>
+                                <button type="button" id="cancelChangePassword" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
 
     <!-- hidden input for import -->
