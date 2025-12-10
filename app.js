@@ -6,9 +6,12 @@ class PharmaStore {
 
         // Load core data from localStorage (or defaults where noted)
         const storedDrugs = this.loadData('drugs');
-        this.drugs = Array.isArray(storedDrugs) && storedDrugs.length > 0
-            ? storedDrugs
-            : this.getDefaultOverTheCounterDrugs();
+        if (Array.isArray(storedDrugs) && storedDrugs.length > 0) {
+            this.drugs = this.mergeDefaultOverTheCounterDrugs(storedDrugs);
+        } else {
+            this.drugs = this.getDefaultOverTheCounterDrugs();
+        }
+        this.saveData('drugs', this.drugs);
         this.sales = this.loadData('sales') || [];
         this.stockAdjustments = this.loadData('stockAdjustments') || [];
         this.pettyCash = this.loadData('pettyCash') || [];
@@ -153,9 +156,21 @@ class PharmaStore {
             makeDrug(5, 'Cough Syrup 100ml', 'Cough & Cold', 100, 4.0, 'Default Supplier')
         ];
 
-        // Persist defaults so subsequent loads use stored data
-        this.saveData('drugs', defaults);
         return defaults;
+    }
+
+    mergeDefaultOverTheCounterDrugs(existing = []) {
+        const byName = new Map(
+            existing.map(d => [String((d.name || '').toLowerCase()), d])
+        );
+        const defaults = this.getDefaultOverTheCounterDrugs();
+        defaults.forEach(def => {
+            const key = String(def.name || '').toLowerCase();
+            if (!byName.has(key)) {
+                byName.set(key, def);
+            }
+        });
+        return Array.from(byName.values());
     }
 
     async ensureLegacyPasswordHashes() {
@@ -187,6 +202,43 @@ class PharmaStore {
         setTimeout(() => {
             window.location.reload();
         }, 500);
+    }
+
+    requireAdminPin() {
+        if (!this.isAdmin) {
+            this.showMessage('Only admins can perform this action', 'error');
+            return false;
+        }
+
+        let storedPin;
+        try {
+            storedPin = this.loadData('adminPin');
+        } catch (_) {
+            storedPin = null;
+        }
+
+        if (!storedPin) {
+            const newPin = window.prompt('No admin PIN set. Enter a new 4-digit PIN:');
+            if (!newPin) {
+                this.showMessage('PIN setup cancelled.', 'error');
+                return false;
+            }
+            const confirmPin = window.prompt('Confirm new PIN:');
+            if (newPin !== confirmPin) {
+                this.showMessage('PINs do not match. Setup cancelled.', 'error');
+                return false;
+            }
+            this.saveData('adminPin', newPin);
+            this.showMessage('Admin PIN set successfully.', 'success');
+            return true;
+        }
+
+        const input = window.prompt('Enter admin PIN to continue:');
+        if (input === storedPin) {
+            return true;
+        }
+        this.showMessage('Incorrect PIN. Action cancelled.', 'error');
+        return false;
     }
 
     // Authentication
@@ -230,6 +282,11 @@ class PharmaStore {
 
                 this.currentUser = user;
                 this.isAdmin = user.type === 'admin';
+
+                // Encourage changing default admin password
+                if (user.username === 'admin' && password === 'password123') {
+                    this.showMessage('Security notice: change the default admin password from the profile menu.', 'warning');
+                }
 
                 // Remember username on this device if requested
                 if (rememberMe) {
@@ -294,7 +351,10 @@ class PharmaStore {
                 action: action,
                 details: details,
                 timestamp: new Date().toISOString(),
-                user: this.currentUser ? this.currentUser.username : 'system'
+                user: this.currentUser ? this.currentUser.username : 'system',
+                category: (action || '').split('_')[0] || 'general',
+                ip: 'local',
+                device: (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : 'unknown'
             };
             
             this.auditLog = this.auditLog || [];
@@ -1487,12 +1547,24 @@ class PharmaStore {
             return saleDate >= start && saleDate <= end;
         });
 
-        const totalSales = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
-        const totalItems = sales.reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0);
+        // Optional filters
+        const filterDrug = document.getElementById('reportFilterDrug')?.value.trim().toLowerCase() || '';
+        const filterUser = document.getElementById('reportFilterUser')?.value.trim().toLowerCase() || '';
+        const filterPayment = document.getElementById('reportFilterPayment')?.value || '';
+
+        const filteredSales = type === 'inventory' ? [] : sales.filter(sale => {
+            if (filterDrug && !(sale.drugName || '').toLowerCase().includes(filterDrug)) return false;
+            if (filterUser && !(sale.soldBy || '').toLowerCase().includes(filterUser)) return false;
+            if (filterPayment && filterPayment !== 'all' && (sale.paymentMethod || '') !== filterPayment) return false;
+            return true;
+        });
+
+        const totalSales = filteredSales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
+        const totalItems = filteredSales.reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0);
 
         document.getElementById('totalSalesAmount').textContent = `$${totalSales.toFixed(2)}`;
         document.getElementById('totalItemsSold').textContent = type === 'inventory' ? this.drugs.length : totalItems;
-        document.getElementById('totalTransactions').textContent = type === 'inventory' ? this.drugs.length : sales.length;
+        document.getElementById('totalTransactions').textContent = type === 'inventory' ? this.drugs.length : filteredSales.length;
 
         if (reportTitle) {
             reportTitle.textContent = `${label} Report`;
@@ -1528,10 +1600,10 @@ class PharmaStore {
                         <tbody>${rows}</tbody>
                     </table>
                 `;
-            } else if (!sales.length) {
+            } else if (!filteredSales.length) {
                 reportContent.innerHTML = `<p class="section-description">No sales recorded for the selected period.</p>`;
             } else {
-                const rows = sales.map(sale => `
+                const rows = filteredSales.map(sale => `
                     <tr>
                         <td>${sale.date || ''}</td>
                         <td>${sale.time || ''}</td>
@@ -1542,7 +1614,8 @@ class PharmaStore {
                         <td>${sale.customerName || 'Walk-in Customer'}</td>
                     </tr>
                 `).join('');
-                reportContent.innerHTML = `
+                // Main sales table
+                let html = `
                     <table class="report-table">
                         <thead>
                             <tr>
@@ -1558,6 +1631,96 @@ class PharmaStore {
                         <tbody>${rows}</tbody>
                     </table>
                 `;
+
+                // Margin per drug & fast/slow movers
+                const perDrug = new Map();
+                const perCustomer = new Map();
+
+                filteredSales.forEach(sale => {
+                    const name = sale.drugName || 'Unknown';
+                    const customer = sale.customerName || 'Walk-in Customer';
+                    const qty = Number(sale.quantity) || 0;
+                    const total = Number(sale.total) || 0;
+
+                    const d = perDrug.get(name) || { qty: 0, total: 0 };
+                    d.qty += qty;
+                    d.total += total;
+                    perDrug.set(name, d);
+
+                    const c = perCustomer.get(customer) || { qty: 0, total: 0 };
+                    c.qty += qty;
+                    c.total += total;
+                    perCustomer.set(customer, c);
+                });
+
+                const perDrugArray = Array.from(perDrug.entries());
+                const fastMoving = perDrugArray.slice().sort((a, b) => b[1].qty - a[1].qty).slice(0, 5);
+                const slowMoving = perDrugArray.slice().filter(([_, v]) => v.qty > 0).sort((a, b) => a[1].qty - b[1].qty).slice(0, 5);
+                const topCustomers = Array.from(perCustomer.entries()).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
+
+                if (perDrugArray.length) {
+                    html += `
+                        <h4>Margin per Drug (Sales Value)</h4>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Drug</th>
+                                    <th>Total Qty</th>
+                                    <th>Sales Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${perDrugArray.map(([name, v]) => `
+                                    <tr>
+                                        <td>${name}</td>
+                                        <td>${v.qty}</td>
+                                        <td>$${v.total.toFixed(2)}</td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                if (fastMoving.length || slowMoving.length) {
+                    html += `
+                        <h4>Fast & Slow Moving Drugs</h4>
+                        <div class="report-summary">
+                            <div class="summary-item">
+                                <span class="label">Top Fast-Moving</span>
+                                ${fastMoving.map(([name, v]) => `<div>${name}: ${v.qty} units</div>`).join('') || '<div>None</div>'}
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Top Slow-Moving</span>
+                                ${slowMoving.map(([name, v]) => `<div>${name}: ${v.qty} units</div>`).join('') || '<div>None</div>'}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (topCustomers.length) {
+                    html += `
+                        <h4>Top Customers</h4>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Total Qty</th>
+                                    <th>Total Spent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topCustomers.map(([name, v]) => `
+                                    <tr>
+                                        <td>${name}</td>
+                                        <td>${v.qty}</td>
+                                        <td>$${v.total.toFixed(2)}</td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                reportContent.innerHTML = html;
             }
         }
 
@@ -1685,6 +1848,11 @@ class PharmaStore {
     }
 
     importData() {
+        if (!this.isAdmin) {
+            this.showMessage('Only admins can import data', 'error');
+            return;
+        }
+        if (!this.requireAdminPin()) return;
         const input = document.getElementById('fileInput');
         if (input) {
             input.click();
@@ -1731,6 +1899,11 @@ class PharmaStore {
     }
 
     clearAllData() {
+        if (!this.isAdmin) {
+            this.showMessage('Only admins can clear all data', 'error');
+            return;
+        }
+        if (!this.requireAdminPin()) return;
         if (confirm('Are you sure you want to clear ALL data? This cannot be undone!')) {
             localStorage.clear();
             location.reload();
@@ -1779,7 +1952,7 @@ class PharmaStore {
                 <td>${log.user || 'system'}</td>
                 <td>${log.action || ''}</td>
                 <td>${log.details || ''}</td>
-                <td>127.0.0.1</td>
+                <td>${log.ip || 'local'}</td>
             `;
             tbody.appendChild(row);
         });
@@ -2394,9 +2567,88 @@ class PharmaStore {
                 <td>${payment.paymentMethod || ''}</td>
                 <td>${payment.notes || ''}</td>
                 <td>${payment.processedBy || ''}</td>
+                <td>
+                    <button class="btn-secondary" onclick="printPayslip('${payment.id}')">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </td>
             `;
             tbody.appendChild(row);
         });
+    }
+
+    printPayslip(paymentId) {
+        const payment = (this.salaryPayments || []).find(p => p.id === paymentId);
+        if (!payment) {
+            this.showMessage('Payslip not found.', 'error');
+            return;
+        }
+        const employee = (this.employees || []).find(e => e.id === payment.employeeId);
+
+        const gross = employee?.grossPay || 0;
+        const allowances = employee?.allowances || 0;
+        const tax = employee?.tax || 0;
+        const ssnit = employee?.ssnit || 0;
+        const insurance = employee?.insurance || 0;
+        const net = employee?.salary || payment.amount || 0;
+
+        const printWindow = window.open('', '_blank', 'width=600,height=800');
+        const title = 'Employee Payslip';
+        printWindow.document.write(`<html><head><title>${title}</title>`);
+        printWindow.document.write('<link rel="stylesheet" href="style.css">');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(`
+            <div class="report-container">
+                <div class="report-header">
+                    <h3>Payslip - ${payment.month || ''}</h3>
+                    <span class="text-muted">PharmaStore Management System</span>
+                </div>
+                <div class="report-summary">
+                    <div class="summary-item">
+                        <span class="label">Employee</span>
+                        <span>${payment.employeeName || ''}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Position</span>
+                        <span>${payment.position || ''}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Payment Date</span>
+                        <span>${this.formatDate(payment.timestamp)}</span>
+                    </div>
+                </div>
+                <h4>Earnings</h4>
+                <table class="report-table">
+                    <tbody>
+                        <tr><td>Gross Pay</td><td>$${gross.toFixed(2)}</td></tr>
+                        <tr><td>Allowances</td><td>$${allowances.toFixed(2)}</td></tr>
+                    </tbody>
+                </table>
+                <h4>Deductions</h4>
+                <table class="report-table">
+                    <tbody>
+                        <tr><td>Tax</td><td>$${tax.toFixed(2)}</td></tr>
+                        <tr><td>SSNIT</td><td>$${ssnit.toFixed(2)}</td></tr>
+                        <tr><td>Insurance</td><td>$${insurance.toFixed(2)}</td></tr>
+                    </tbody>
+                </table>
+                <h4>Net Salary</h4>
+                <table class="report-table">
+                    <tbody>
+                        <tr><td>Net Pay</td><td>$${net.toFixed(2)}</td></tr>
+                        <tr><td>Payment Method</td><td>${payment.paymentMethod || ''}</td></tr>
+                        <tr><td>Notes</td><td>${payment.notes || ''}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        `);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 300);
     }
 
     toggleEmployeeForm() {
@@ -2448,6 +2700,10 @@ function printReceipt() {
 
 function runEndOfDay() {
     if (pharmaStore) pharmaStore.runEndOfDay();
+}
+
+function printPayslip(id) {
+    if (pharmaStore) pharmaStore.printPayslip(id);
 }
 
 function printReport() {

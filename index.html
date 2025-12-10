@@ -52,13 +52,6 @@
                     </button>
                 </div>
                 <div id="loginMessage" class="message info" aria-live="polite" style="display:none;"></div>
-                <p class="login-hint" style="margin-top:0.75rem;">
-                    Having trouble logging in?
-                    <button type="button" id="resetDataBtn" class="btn btn-secondary" style="margin-top:0.5rem;">
-                        <i class="fas fa-trash"></i>
-                        <span>Reset local data</span>
-                    </button>
-                </p>
             </form>
         </div>
     </div>
@@ -819,6 +812,7 @@
                                     <th>Method</th>
                                     <th>Notes</th>
                                     <th>Processed By</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="salaryPaymentsTableBody"></tbody>
@@ -859,6 +853,23 @@
                         <div class="filter-group">
                             <label for="reportDate">Base Date</label>
                             <input id="reportDate" type="date" />
+                        </div>
+                        <div class="filter-group">
+                            <label for="reportFilterDrug">Filter by Drug</label>
+                            <input id="reportFilterDrug" type="text" placeholder="Optional drug name" />
+                        </div>
+                        <div class="filter-group">
+                            <label for="reportFilterUser">Filter by User</label>
+                            <input id="reportFilterUser" type="text" placeholder="Optional username" />
+                        </div>
+                        <div class="filter-group">
+                            <label for="reportFilterPayment">Payment Method</label>
+                            <select id="reportFilterPayment">
+                                <option value="">All</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Transfer">Transfer</option>
+                                <option value="POS">POS</option>
+                            </select>
                         </div>
                         <div class="filter-group">
                             <label>&nbsp;</label>
