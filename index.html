@@ -38,6 +38,13 @@
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" required placeholder="Enter password" autocomplete="current-password" />
 
+                <div class="form-group" style="margin-top:0.5rem;">
+                    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500;">
+                        <input id="rememberMe" type="checkbox" style="width:auto;"/>
+                        <span>Remember me on this device</span>
+                    </label>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-sign-in-alt"></i>
@@ -150,6 +157,12 @@
                         <div>
                             <h2>Dashboard</h2>
                             <p class="section-description">High-level view of your pharmacy performance.</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <button type="button" class="action-btn" onclick="runEndOfDay()">
+                                <i class="fas fa-stopwatch"></i>
+                                <span>End of Day (EOD)</span>
+                            </button>
                         </div>
                     </div>
 
@@ -678,8 +691,8 @@
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="employeeSalary">Monthly Salary ($)</label>
-                                    <input id="employeeSalary" type="number" step="0.01" min="0" required />
+                                    <label for="employeeGrossPay">Gross Pay ($)</label>
+                                    <input id="employeeGrossPay" type="number" step="0.01" min="0" required />
                                 </div>
                                 <div class="form-group">
                                     <label for="employeeStartDate">Start Date</label>
@@ -694,6 +707,32 @@
                                 <div class="form-group">
                                     <label for="employeeEmail">Email</label>
                                     <input id="employeeEmail" type="email" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="employeeAllowances">Allowances ($)</label>
+                                    <input id="employeeAllowances" type="number" step="0.01" min="0" value="0" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="employeeTax">Tax ($)</label>
+                                    <input id="employeeTax" type="number" step="0.01" min="0" value="0" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="employeeSSNIT">SSNIT ($)</label>
+                                    <input id="employeeSSNIT" type="number" step="0.01" min="0" value="0" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="employeeInsurance">Insurance ($)</label>
+                                    <input id="employeeInsurance" type="number" step="0.01" min="0" value="0" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="employeeNetSalary">Net Salary ($)</label>
+                                    <input id="employeeNetSalary" type="number" step="0.01" min="0" readonly />
                                 </div>
                             </div>
                             <div class="form-actions">
@@ -716,7 +755,8 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Position</th>
-                                    <th>Salary</th>
+                                    <th>Gross Pay</th>
+                                    <th>Net Salary</th>
                                     <th>Phone</th>
                                     <th>Start Date</th>
                                     <th>Actions</th>
@@ -859,21 +899,22 @@
                     </div>
                 </section>
 
-                <!-- Analytics Section (placeholder) -->
+                <!-- Analytics Section -->
                 <section id="analytics" class="content-section" aria-label="Analytics">
                     <div class="section-header">
                         <div>
                             <h2>Analytics</h2>
-                            <p class="section-description">Visual insights into sales and inventory (basic placeholder view).</p>
+                            <p class="section-description">Visual insights into sales and inventory.</p>
                         </div>
                     </div>
                     <div class="analytics-overview">
                         <div class="analytics-card">
-                            <h3>Coming Soon</h3>
-                            <p class="section-description">
-                                Advanced charts and KPIs will appear here. The core logic is already wired in
-                                `renderAnalytics()` so you can plug in Chart.js or other libraries later.
-                            </p>
+                            <h3>Sales - Last 7 Days</h3>
+                            <div id="salesTrendChart" class="chart-container"></div>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Top Selling Drugs</h3>
+                            <div id="topDrugsList" class="insights-grid"></div>
                         </div>
                     </div>
                 </section>

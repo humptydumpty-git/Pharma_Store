@@ -3,7 +3,12 @@ class PharmaStore {
     constructor() {
         this.currentUser = null;
         this.isAdmin = false;
-        this.drugs = this.loadData('drugs') || [];
+
+        // Load core data from localStorage (or defaults where noted)
+        const storedDrugs = this.loadData('drugs');
+        this.drugs = Array.isArray(storedDrugs) && storedDrugs.length > 0
+            ? storedDrugs
+            : this.getDefaultOverTheCounterDrugs();
         this.sales = this.loadData('sales') || [];
         this.stockAdjustments = this.loadData('stockAdjustments') || [];
         this.pettyCash = this.loadData('pettyCash') || [];
@@ -45,8 +50,8 @@ class PharmaStore {
         this.inactivityTimer = null;
         this.inactivityWarningTimer = null;
         this.lastActivityTime = Date.now();
-        this.inactivityTimeout = 60 * 1000; // 1 minute in milliseconds
-        this.warningTime = 50 * 1000; // Show warning at 50 seconds
+        this.inactivityTimeout = 10 * 60 * 1000; // 10 minutes in milliseconds
+        this.warningTime = 9 * 60 * 1000; // Show warning at 9 minutes
         
         this.setupGlobalErrorHandlers();
         this.init();
@@ -123,6 +128,36 @@ class PharmaStore {
         return results;
     }
 
+    // Default over-the-counter drugs for fresh installs
+    getDefaultOverTheCounterDrugs() {
+        const now = new Date();
+        const oneYearFromNow = new Date(now);
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        const expiry = oneYearFromNow.toISOString().split('T')[0];
+
+        const makeDrug = (id, name, category, quantity, price, supplier) => ({
+            id: id.toString(),
+            name,
+            category,
+            quantity,
+            price,
+            expiry,
+            supplier
+        });
+
+        const defaults = [
+            makeDrug(1, 'Paracetamol 500mg', 'Analgesic', 200, 1.5, 'Default Supplier'),
+            makeDrug(2, 'Ibuprofen 400mg', 'Analgesic', 150, 2.0, 'Default Supplier'),
+            makeDrug(3, 'Vitamin C 100mg', 'Supplement', 180, 1.2, 'Default Supplier'),
+            makeDrug(4, 'Antacid Suspension', 'Gastrointestinal', 80, 3.5, 'Default Supplier'),
+            makeDrug(5, 'Cough Syrup 100ml', 'Cough & Cold', 100, 4.0, 'Default Supplier')
+        ];
+
+        // Persist defaults so subsequent loads use stored data
+        this.saveData('drugs', defaults);
+        return defaults;
+    }
+
     async ensureLegacyPasswordHashes() {
         if (!Array.isArray(this.users)) return;
         let needsSave = false;
@@ -168,6 +203,7 @@ class PharmaStore {
 
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
+            const rememberMe = document.getElementById('rememberMe')?.checked;
 
             // Basic validation
             if (!username || !password) {
@@ -194,6 +230,17 @@ class PharmaStore {
 
                 this.currentUser = user;
                 this.isAdmin = user.type === 'admin';
+
+                // Remember username on this device if requested
+                if (rememberMe) {
+                    this.saveData('rememberedCredentials', { username });
+                } else {
+                    try {
+                        localStorage.removeItem('rememberedCredentials');
+                    } catch (e) {
+                        console.warn('Unable to clear remembered credentials', e);
+                    }
+                }
                 
                 // Log the login event
                 this.logAuditEvent('login', 'User ' + username + ' logged in');
@@ -271,6 +318,7 @@ class PharmaStore {
         this.updateSyncStatus();
         this.setupInactivityTimer();
         this.renderErrorLogTable();
+        this.applyRememberedCredentials();
     }
 
     setupGlobalErrorHandlers() {
@@ -299,6 +347,20 @@ class PharmaStore {
         };
         this.recentErrors = [entry, ...(this.recentErrors || [])].slice(0, 10);
         this.renderErrorLogTable();
+    }
+
+    applyRememberedCredentials() {
+        try {
+            const data = this.loadData('rememberedCredentials');
+            if (data && data.username) {
+                const usernameInput = document.getElementById('username');
+                const rememberCheckbox = document.getElementById('rememberMe');
+                if (usernameInput) usernameInput.value = data.username;
+                if (rememberCheckbox) rememberCheckbox.checked = true;
+            }
+        } catch (e) {
+            console.warn('Unable to apply remembered credentials', e);
+        }
     }
 
     renderErrorLogTable() {
@@ -448,6 +510,15 @@ class PharmaStore {
                 this.handleAddEmployee();
             });
         }
+
+        // Employee net salary live preview
+        ['employeeGrossPay', 'employeeAllowances', 'employeeTax', 'employeeSSNIT', 'employeeInsurance']
+            .forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', () => this.updateEmployeeNetSalaryPreview());
+                }
+            });
 
         // Salary payment form
         const salaryPaymentForm = document.getElementById('salaryPaymentForm');
@@ -1308,10 +1379,91 @@ class PharmaStore {
         });
     }
 
+    runEndOfDay() {
+        const today = new Date().toISOString().split('T')[0];
+
+        const todaysSales = (this.sales || []).filter(sale => sale.date === today);
+        const totalSales = todaysSales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
+
+        const todaysExpenses = (this.pettyCash || []).filter(entry => entry.date === today);
+        const totalExpenses = todaysExpenses.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+
+        const net = totalSales - totalExpenses;
+        const summary = `EOD for ${this.formatDate(today)} - Sales: $${totalSales.toFixed(2)}, Expenses: $${totalExpenses.toFixed(2)}, Net: $${net.toFixed(2)}`;
+
+        this.showMessage(summary, 'info');
+        this.logAuditEvent('end_of_day', summary);
+
+        if (window.confirm('Download a backup file for today\'s data?')) {
+            this.exportData();
+        }
+    }
+
     // Placeholder methods for other features - to be implemented
     renderAnalytics() {
-        // Analytics rendering - placeholder
-        console.log('Rendering analytics...');
+        const salesTrendContainer = document.getElementById('salesTrendChart');
+        const topDrugsContainer = document.getElementById('topDrugsList');
+        if (!salesTrendContainer || !topDrugsContainer) return;
+
+        // Sales trend for last 7 days
+        const days = [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const key = d.toISOString().split('T')[0];
+            days.push({ key, label: d.toLocaleDateString() });
+        }
+
+        const salesByDate = new Map();
+        (this.sales || []).forEach(sale => {
+            if (!sale.date) return;
+            const key = sale.date;
+            const current = salesByDate.get(key) || 0;
+            salesByDate.set(key, current + (Number(sale.total) || 0));
+        });
+
+        const series = days.map(d => ({
+            label: d.label,
+            value: salesByDate.get(d.key) || 0
+        }));
+        const maxValue = series.reduce((m, s) => Math.max(m, s.value), 0) || 1;
+
+        salesTrendContainer.innerHTML = series.map(s => {
+            const width = (s.value / maxValue) * 100;
+            return `
+                <div class="chart-row">
+                    <span class="chart-row-label">${s.label}</span>
+                    <div class="chart-bar">
+                        <div class="chart-bar-fill" style="width:${width}%"></div>
+                        <span class="chart-bar-value">$${s.value.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Top 5 selling drugs by quantity
+        const totals = new Map();
+        (this.sales || []).forEach(sale => {
+            const name = sale.drugName || 'Unknown';
+            const current = totals.get(name) || 0;
+            totals.set(name, current + (Number(sale.quantity) || 0));
+        });
+
+        const top = Array.from(totals.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        if (!top.length) {
+            topDrugsContainer.innerHTML = '<p class="section-description">No sales recorded yet.</p>';
+        } else {
+            topDrugsContainer.innerHTML = top.map(([name, qty]) => `
+                <div class="summary-chip">
+                    <span>${name}</span>
+                    <strong>${qty} units</strong>
+                </div>
+            `).join('');
+        }
     }
 
     updateReportDate() {
@@ -1449,6 +1601,12 @@ class PharmaStore {
                 label = 'Daily';
         }
 
+        // Normalize to full days for all non-inventory reports
+        if (type !== 'inventory') {
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 59, 999);
+        }
+
         return { start, end, label };
     }
 
@@ -1474,7 +1632,33 @@ class PharmaStore {
     }
 
     printReceipt() {
-        window.print();
+        const receiptContainer = document.getElementById('receiptContainer');
+        if (!receiptContainer || receiptContainer.style.display === 'none') {
+            this.showMessage('No receipt to print. Please process a sale first.', 'error');
+            return;
+        }
+
+        const content = document.getElementById('receiptContent');
+        if (!content) {
+            this.showMessage('Receipt content is not available.', 'error');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank', 'width=600,height=800');
+        const title = 'Receipt';
+        printWindow.document.write(`<html><head><title>${title}</title>`);
+        printWindow.document.write('<link rel="stylesheet" href="style.css">');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write('<div class="receipt-container">');
+        printWindow.document.write(content.outerHTML);
+        printWindow.document.write('</div>');
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 300);
     }
 
     exportData() {
@@ -2029,13 +2213,24 @@ class PharmaStore {
 
         const name = document.getElementById('employeeName')?.value.trim();
         const position = document.getElementById('employeePosition')?.value.trim();
-        const salary = parseFloat(document.getElementById('employeeSalary')?.value || 0);
+        const grossPay = parseFloat(document.getElementById('employeeGrossPay')?.value || 0);
+        const allowances = parseFloat(document.getElementById('employeeAllowances')?.value || 0);
+        const tax = parseFloat(document.getElementById('employeeTax')?.value || 0);
+        const ssnit = parseFloat(document.getElementById('employeeSSNIT')?.value || 0);
+        const insurance = parseFloat(document.getElementById('employeeInsurance')?.value || 0);
         const phone = document.getElementById('employeePhone')?.value.trim() || '';
         const email = document.getElementById('employeeEmail')?.value.trim() || '';
         const startDate = document.getElementById('employeeStartDate')?.value;
 
-        if (!name || !position || !salary || !startDate) {
+        if (!name || !position || !grossPay || !startDate) {
             this.showMessage('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const totalDeductions = (tax || 0) + (ssnit || 0) + (insurance || 0);
+        const netSalary = (grossPay || 0) + (allowances || 0) - totalDeductions;
+        if (netSalary < 0) {
+            this.showMessage('Net salary cannot be negative. Please review deductions.', 'error');
             return;
         }
 
@@ -2043,7 +2238,12 @@ class PharmaStore {
             id: Date.now().toString(),
             name: name,
             position: position,
-            salary: salary,
+            grossPay: grossPay,
+            allowances: allowances,
+            tax: tax,
+            ssnit: ssnit,
+            insurance: insurance,
+            salary: netSalary, // keep existing field as net salary for compatibility
             phone: phone,
             email: email,
             startDate: startDate,
@@ -2064,6 +2264,9 @@ class PharmaStore {
             form.reset();
             form.style.display = 'none';
         }
+
+        // Recalculate displayed net salary field for next use
+        this.updateEmployeeNetSalaryPreview();
     }
 
     renderEmployees() {
@@ -2076,6 +2279,7 @@ class PharmaStore {
             row.innerHTML = `
                 <td>${emp.name || ''}</td>
                 <td>${emp.position || ''}</td>
+                <td>$${(emp.grossPay || 0).toFixed(2)}</td>
                 <td>$${(emp.salary || 0).toFixed(2)}</td>
                 <td>${emp.phone || ''}</td>
                 <td>${this.formatDate(emp.startDate)}</td>
@@ -2087,6 +2291,19 @@ class PharmaStore {
             `;
             tbody.appendChild(row);
         });
+    }
+
+    updateEmployeeNetSalaryPreview() {
+        const gross = parseFloat(document.getElementById('employeeGrossPay')?.value || 0);
+        const allowances = parseFloat(document.getElementById('employeeAllowances')?.value || 0);
+        const tax = parseFloat(document.getElementById('employeeTax')?.value || 0);
+        const ssnit = parseFloat(document.getElementById('employeeSSNIT')?.value || 0);
+        const insurance = parseFloat(document.getElementById('employeeInsurance')?.value || 0);
+        const net = gross + allowances - (tax + ssnit + insurance);
+        const netInput = document.getElementById('employeeNetSalary');
+        if (netInput) {
+            netInput.value = net > 0 ? net.toFixed(2) : '';
+        }
     }
 
     deleteEmployee(id) {
@@ -2227,6 +2444,10 @@ function cancelDrugForm() {
 
 function printReceipt() {
     if (pharmaStore) pharmaStore.printReceipt();
+}
+
+function runEndOfDay() {
+    if (pharmaStore) pharmaStore.runEndOfDay();
 }
 
 function printReport() {
