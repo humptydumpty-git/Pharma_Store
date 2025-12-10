@@ -149,11 +149,131 @@ class PharmaStore {
         });
 
         const defaults = [
-            makeDrug(1, 'Paracetamol 500mg', 'Analgesic', 200, 1.5, 'Default Supplier'),
-            makeDrug(2, 'Ibuprofen 400mg', 'Analgesic', 150, 2.0, 'Default Supplier'),
-            makeDrug(3, 'Vitamin C 100mg', 'Supplement', 180, 1.2, 'Default Supplier'),
-            makeDrug(4, 'Antacid Suspension', 'Gastrointestinal', 80, 3.5, 'Default Supplier'),
-            makeDrug(5, 'Cough Syrup 100ml', 'Cough & Cold', 100, 4.0, 'Default Supplier')
+            // Analgesics / Pain relief
+            makeDrug(1, 'Paracetamol 500mg Tablets', 'Analgesic', 0, 0, ''),
+            makeDrug(2, 'Paracetamol 125mg Syrup', 'Analgesic', 0, 0, ''),
+            makeDrug(3, 'Ibuprofen 400mg Tablets', 'Analgesic', 0, 0, ''),
+            makeDrug(4, 'Ibuprofen 200mg Tablets', 'Analgesic', 0, 0, ''),
+            makeDrug(5, 'Diclofenac 50mg Tablets', 'Analgesic', 0, 0, ''),
+            makeDrug(6, 'Diclofenac 75mg Injection', 'Analgesic', 0, 0, ''),
+            makeDrug(7, 'Aspirin 75mg Tablets', 'Analgesic', 0, 0, ''),
+            makeDrug(8, 'Aspirin 300mg Tablets', 'Analgesic', 0, 0, ''),
+            makeDrug(9, 'Tramadol 50mg Capsules', 'Analgesic', 0, 0, ''),
+            makeDrug(10, 'Codeine Phosphate Syrup', 'Analgesic', 0, 0, ''),
+
+            // Cough & cold
+            makeDrug(11, 'Adult Cough Syrup 100ml', 'Cough & Cold', 0, 0, ''),
+            makeDrug(12, 'Children Cough Syrup 60ml', 'Cough & Cold', 0, 0, ''),
+            makeDrug(13, 'Linctus Simple 100ml', 'Cough & Cold', 0, 0, ''),
+            makeDrug(14, 'Menthol Cough Lozenges', 'Cough & Cold', 0, 0, ''),
+            makeDrug(15, 'Chlorpheniramine 4mg Tablets', 'Antihistamine', 0, 0, ''),
+            makeDrug(16, 'Cetirizine 10mg Tablets', 'Antihistamine', 0, 0, ''),
+            makeDrug(17, 'Loratadine 10mg Tablets', 'Antihistamine', 0, 0, ''),
+            makeDrug(18, 'Pseudoephedrine Tablets', 'Cough & Cold', 0, 0, ''),
+            makeDrug(19, 'Cold & Flu Combination Tablets', 'Cough & Cold', 0, 0, ''),
+            makeDrug(20, 'Saline Nasal Spray', 'Cough & Cold', 0, 0, ''),
+
+            // Gastrointestinal
+            makeDrug(21, 'Antacid Suspension 200ml', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(22, 'Aluminium Hydroxide Tablets', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(23, 'Omeprazole 20mg Capsules', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(24, 'Lansoprazole 30mg Capsules', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(25, 'Ranitidine 150mg Tablets', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(26, 'Oral Rehydration Salts (ORS)', 'Antidiarrheal', 0, 0, ''),
+            makeDrug(27, 'Loperamide 2mg Capsules', 'Antidiarrheal', 0, 0, ''),
+            makeDrug(28, 'Activated Charcoal Tablets', 'Antidiarrheal', 0, 0, ''),
+            makeDrug(29, 'Simethicone Drops', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(30, 'Probiotic Capsules', 'Gastrointestinal', 0, 0, ''),
+
+            // Supplements / Vitamins
+            makeDrug(31, 'Vitamin C 100mg Tablets', 'Supplement', 0, 0, ''),
+            makeDrug(32, 'Vitamin C 500mg Tablets', 'Supplement', 0, 0, ''),
+            makeDrug(33, 'Multivitamin Tablets', 'Supplement', 0, 0, ''),
+            makeDrug(34, 'Multivitamin Syrup', 'Supplement', 0, 0, ''),
+            makeDrug(35, 'Iron + Folic Acid Tablets', 'Supplement', 0, 0, ''),
+            makeDrug(36, 'Calcium + Vitamin D Tablets', 'Supplement', 0, 0, ''),
+            makeDrug(37, 'Zinc Sulphate 20mg Tablets', 'Supplement', 0, 0, ''),
+            makeDrug(38, 'Zinc Syrup', 'Supplement', 0, 0, ''),
+            makeDrug(39, 'Vitamin B Complex Tablets', 'Supplement', 0, 0, ''),
+            makeDrug(40, 'Vitamin D3 1000IU Capsules', 'Supplement', 0, 0, ''),
+
+            // Anti-infectives (common OTC/topicals)
+            makeDrug(41, 'Amoxicillin 500mg Capsules', 'Antibiotic', 0, 0, ''),
+            makeDrug(42, 'Amoxicillin 125mg Suspension', 'Antibiotic', 0, 0, ''),
+            makeDrug(43, 'Co-amoxiclav Tablets', 'Antibiotic', 0, 0, ''),
+            makeDrug(44, 'Metronidazole 400mg Tablets', 'Antibiotic', 0, 0, ''),
+            makeDrug(45, 'Metronidazole Suspension', 'Antibiotic', 0, 0, ''),
+            makeDrug(46, 'Cotrimoxazole Tablets', 'Antibiotic', 0, 0, ''),
+            makeDrug(47, 'Cotrimoxazole Suspension', 'Antibiotic', 0, 0, ''),
+            makeDrug(48, 'Topical Antibiotic Cream', 'Topical', 0, 0, ''),
+            makeDrug(49, 'Topical Antifungal Cream', 'Topical', 0, 0, ''),
+            makeDrug(50, 'Miconazole Vaginal Pessary', 'Antifungal', 0, 0, ''),
+
+            // Antimalarials
+            makeDrug(51, 'Artemether/Lumefantrine Tablets', 'Antimalarial', 0, 0, ''),
+            makeDrug(52, 'Artesunate + Amodiaquine Tablets', 'Antimalarial', 0, 0, ''),
+            makeDrug(53, 'Sulphadoxine/Pyrimethamine Tablets', 'Antimalarial', 0, 0, ''),
+            makeDrug(54, 'Doxycycline 100mg Capsules', 'Antimalarial/Antibiotic', 0, 0, ''),
+            makeDrug(55, 'Quinine 300mg Tablets', 'Antimalarial', 0, 0, ''),
+
+            // Dermatology / Skin
+            makeDrug(56, 'Hydrocortisone 1% Cream', 'Topical', 0, 0, ''),
+            makeDrug(57, 'Calamine Lotion', 'Topical', 0, 0, ''),
+            makeDrug(58, 'Antiseptic Skin Solution', 'Topical', 0, 0, ''),
+            makeDrug(59, 'Emollient Cream', 'Topical', 0, 0, ''),
+            makeDrug(60, 'Sunblock SPF 30 Cream', 'Topical', 0, 0, ''),
+
+            // Eye / Ear / Nose
+            makeDrug(61, 'Artificial Tears Eye Drops', 'Eye/Ear', 0, 0, ''),
+            makeDrug(62, 'Chloramphenicol Eye Drops', 'Eye/Ear', 0, 0, ''),
+            makeDrug(63, 'Antihistamine Eye Drops', 'Eye/Ear', 0, 0, ''),
+            makeDrug(64, 'Ear Wax Removal Drops', 'Eye/Ear', 0, 0, ''),
+            makeDrug(65, 'Sterile Saline Eye Wash', 'Eye/Ear', 0, 0, ''),
+
+            // Diabetes & BP (commonly dispensed, may be used as OTC in practice)
+            makeDrug(66, 'Metformin 500mg Tablets', 'Antidiabetic', 0, 0, ''),
+            makeDrug(67, 'Glibenclamide 5mg Tablets', 'Antidiabetic', 0, 0, ''),
+            makeDrug(68, 'Losartan 50mg Tablets', 'Antihypertensive', 0, 0, ''),
+            makeDrug(69, 'Amlodipine 5mg Tablets', 'Antihypertensive', 0, 0, ''),
+            makeDrug(70, 'Hydrochlorothiazide 25mg Tablets', 'Antihypertensive', 0, 0, ''),
+
+            // Respiratory / Asthma
+            makeDrug(71, 'Salbutamol Inhaler', 'Respiratory', 0, 0, ''),
+            makeDrug(72, 'Beclomethasone Inhaler', 'Respiratory', 0, 0, ''),
+            makeDrug(73, 'Salbutamol Syrup', 'Respiratory', 0, 0, ''),
+            makeDrug(74, 'Nebulizer Saline Solution', 'Respiratory', 0, 0, ''),
+
+            // Women\'s health
+            makeDrug(75, 'Combined Oral Contraceptive Pills', 'Women\'s Health', 0, 0, ''),
+            makeDrug(76, 'Emergency Contraceptive Tablets', 'Women\'s Health', 0, 0, ''),
+            makeDrug(77, 'Folic Acid 5mg Tablets', 'Women\'s Health', 0, 0, ''),
+            makeDrug(78, 'Prenatal Multivitamin', 'Women\'s Health', 0, 0, ''),
+
+            // Paediatrics
+            makeDrug(79, 'Paracetamol 120mg/5ml Syrup', 'Paediatric', 0, 0, ''),
+            makeDrug(80, 'Ibuprofen 100mg/5ml Suspension', 'Paediatric', 0, 0, ''),
+            makeDrug(81, 'Zinc + ORS Paediatric Pack', 'Paediatric', 0, 0, ''),
+            makeDrug(82, 'Children Multivitamin Syrup', 'Paediatric', 0, 0, ''),
+            makeDrug(83, 'Paediatric Cough Syrup', 'Paediatric', 0, 0, ''),
+
+            // Miscellaneous OTC
+            makeDrug(84, 'Sodium Chloride 0.9% 500ml', 'IV Fluids', 0, 0, ''),
+            makeDrug(85, 'Ringer\'s Lactate 500ml', 'IV Fluids', 0, 0, ''),
+            makeDrug(86, 'Glucose 5% 500ml', 'IV Fluids', 0, 0, ''),
+            makeDrug(87, 'Antiseptic Mouthwash', 'Dental', 0, 0, ''),
+            makeDrug(88, 'Toothache Relief Gel', 'Dental', 0, 0, ''),
+            makeDrug(89, 'Oral Ulcer Gel', 'Dental', 0, 0, ''),
+            makeDrug(90, 'Sodium Bicarbonate Powder', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(91, 'Electrolyte Replacement Powder', 'Gastrointestinal', 0, 0, ''),
+            makeDrug(92, 'Mosquito Repellent Cream', 'Topical', 0, 0, ''),
+            makeDrug(93, 'Antiseptic Hand Gel', 'Topical', 0, 0, ''),
+            makeDrug(94, 'Burn Relief Gel', 'Topical', 0, 0, ''),
+            makeDrug(95, 'Oral Analgesic Gel', 'Dental', 0, 0, ''),
+            makeDrug(96, 'Nystatin Oral Suspension', 'Antifungal', 0, 0, ''),
+            makeDrug(97, 'Rehydration Sachet for Adults', 'Antidiarrheal', 0, 0, ''),
+            makeDrug(98, 'Rehydration Sachet for Children', 'Antidiarrheal', 0, 0, ''),
+            makeDrug(99, 'Sterile Gauze 10cm x 10cm', 'Dressing', 0, 0, ''),
+            makeDrug(100, 'Adhesive Plaster Roll', 'Dressing', 0, 0, '')
         ];
 
         return defaults;
