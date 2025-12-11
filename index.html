@@ -1117,28 +1117,6 @@
                     </div>
                 </div>
             </main>
-
-            <!-- Footer / Contact Section -->
-            <footer class="app-footer">
-                <div class="footer-content">
-                    <div class="footer-left">
-                        <span class="footer-title">PharmaStore Management System</span>
-                        <span class="footer-copy">&copy; <span id="footerYear"></span> HUMP TECHNOLOGY. All rights reserved.</span>
-                    </div>
-                    <div class="footer-right">
-                        <span class="footer-contact">
-                            <strong>Contact:</strong>
-                            <span>0240299683</span>
-                            <span> / </span>
-                            <span>0545781788</span>
-                        </span>
-                        <span class="footer-contact">
-                            <strong>Email:</strong>
-                            <a href="mailto:humptyisme@gmail.com">humptyisme@gmail.com</a>
-                        </span>
-                    </div>
-                </div>
-            </footer>
         </div>
     </div>
 
@@ -1175,17 +1153,12 @@
             console.log('Skipping SW/manifest registration (not served over HTTP/HTTPS).');
         }
 
-        // Ensure login screen is visible on initial load and set footer year
+        // Ensure login screen is visible on initial load
         window.addEventListener('DOMContentLoaded', () => {
             const ls = document.getElementById('loginScreen');
             const ma = document.getElementById('mainApp');
             if (ls && (!ma || ma.style.display === '' || ma.style.display === 'none')) {
                 ls.style.display = 'flex';
-            }
-
-            const footerYear = document.getElementById('footerYear');
-            if (footerYear) {
-                footerYear.textContent = new Date().getFullYear();
             }
         });
     </script>
