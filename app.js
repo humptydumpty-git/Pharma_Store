@@ -530,6 +530,9 @@ class PharmaStore {
                     }
                 }
                 
+                // Persist lightweight session so refresh does not log the user out
+                this.saveUserSession();
+
                 // Log the login event
                 this.logAuditEvent('login', 'User ' + username + ' logged in');
                 
@@ -610,6 +613,7 @@ class PharmaStore {
         this.setupInactivityTimer();
         this.renderErrorLogTable();
         this.applyRememberedCredentials();
+        this.restoreUserSession();
     }
 
     setupGlobalErrorHandlers() {
@@ -651,6 +655,53 @@ class PharmaStore {
             }
         } catch (e) {
             console.warn('Unable to apply remembered credentials', e);
+        }
+    }
+
+    saveUserSession() {
+        try {
+            if (this.currentUser) {
+                this.saveData('currentUserSession', {
+                    username: this.currentUser.username
+                });
+            } else {
+                localStorage.removeItem('currentUserSession');
+            }
+        } catch (e) {
+            console.warn('Unable to save user session', e);
+        }
+    }
+
+    clearUserSession() {
+        try {
+            localStorage.removeItem('currentUserSession');
+        } catch (e) {
+            console.warn('Unable to clear user session', e);
+        }
+    }
+
+    restoreUserSession() {
+        try {
+            const session = this.loadData('currentUserSession');
+            if (!session || !session.username) return;
+
+            const user = (this.users || []).find(u => u.username === session.username);
+            if (!user) {
+                this.clearUserSession();
+                return;
+            }
+
+            this.currentUser = user;
+            this.isAdmin = user.type === 'admin';
+
+            // Show the main app as if the user just logged in
+            this.showMainApp();
+            if (this.updateDashboard) this.updateDashboard();
+            if (this.populateSalesDrugs) this.populateSalesDrugs();
+            if (this.renderDrugs) this.renderDrugs();
+            if (this.renderSales) this.renderSales();
+        } catch (e) {
+            console.warn('Unable to restore user session', e);
         }
     }
 
@@ -911,6 +962,7 @@ class PharmaStore {
         // Reset user session
         this.currentUser = null;
         this.isAdmin = false;
+        this.clearUserSession();
         
         // Show login screen
         this.showLoginScreen();
@@ -1686,14 +1738,40 @@ class PharmaStore {
         const todaysSales = (this.sales || []).filter(sale => sale.date === today);
         const totalSales = todaysSales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
 
-        const todaysExpenses = (this.pettyCash || []).filter(entry => entry.date === today);
-        const totalExpenses = todaysExpenses.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+        const todaysEntries = (this.pettyCash || []).filter(entry => entry.date === today);
+        const totalExpenses = todaysEntries
+            .filter(entry => entry.type !== 'income')
+            .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
 
         const net = totalSales - totalExpenses;
         const summary = `EOD for ${this.formatDate(today)} - Sales: ₵${totalSales.toFixed(2)}, Expenses: ₵${totalExpenses.toFixed(2)}, Net: ₵${net.toFixed(2)}`;
 
         this.showMessage(summary, 'info');
         this.logAuditEvent('end_of_day', summary);
+
+        // Automatically add today's sales to petty cash balance as income
+        if (totalSales > 0) {
+            const incomeEntry = {
+                id: `sales_${Date.now().toString()}`,
+                date: today,
+                category: 'Sales Income',
+                description: `End of Day sales income for ${this.formatDate(today)}`,
+                amount: totalSales,
+                paymentMethod: 'Sales',
+                notes: '',
+                recordedBy: this.currentUser?.username || 'system',
+                timestamp: new Date().toISOString(),
+                type: 'income'
+            };
+
+            this.pettyCash = this.pettyCash || [];
+            this.pettyCash.push(incomeEntry);
+            this.pettyCashBalance = (this.pettyCashBalance || 0) + totalSales;
+            this.saveData('pettyCash', this.pettyCash);
+            this.saveData('pettyCashBalance', this.pettyCashBalance);
+            this.updatePettyCashSummary();
+            this.renderPettyCash();
+        }
 
         if (window.confirm('Download a backup file for today\'s data?')) {
             this.exportData();
@@ -2508,17 +2586,19 @@ class PharmaStore {
             paymentMethod: paymentMethod,
             notes: notes,
             recordedBy: this.currentUser?.username || 'unknown',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            type: 'expense' // default petty cash entries are expenses
         };
 
         this.pettyCash = this.pettyCash || [];
         this.pettyCash.push(entry);
+        // Expenses reduce the petty cash balance
         this.pettyCashBalance = (this.pettyCashBalance || 0) - amount;
         this.saveData('pettyCash', this.pettyCash);
         this.saveData('pettyCashBalance', this.pettyCashBalance);
 
         this.showMessage('Expense recorded successfully', 'success');
-        this.logAuditEvent('petty_cash_entry', `Recorded expense: ${description} - $${amount.toFixed(2)}`);
+        this.logAuditEvent('petty_cash_entry', `Recorded expense: ${description} - ₵${amount.toFixed(2)}`);
         this.renderPettyCash();
         this.updatePettyCashSummary();
 
@@ -2531,13 +2611,27 @@ class PharmaStore {
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        (this.pettyCash || []).slice().reverse().forEach(entry => {
+        const filter = document.getElementById('pettyCashReportFilter')?.value || 'all';
+        let entries = (this.pettyCash || []).slice().reverse();
+
+        // Filter entries based on selected report type
+        if (filter === 'expenses') {
+            entries = entries.filter(e => e.type !== 'income');
+        } else if (filter === 'income') {
+            entries = entries.filter(e => e.type === 'income');
+        } else if (filter === 'sales') {
+            entries = entries.filter(e => e.type === 'income' && e.category === 'Sales Income');
+        }
+
+        entries.forEach(entry => {
+            const isIncome = entry.type === 'income';
+            const sign = isIncome ? '+' : '-';
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${this.formatDate(entry.date)}</td>
                 <td>${entry.category || ''}</td>
                 <td>${entry.description || ''}</td>
-                <td>$${(entry.amount || 0).toFixed(2)}</td>
+                <td>${sign}₵${Math.abs(entry.amount || 0).toFixed(2)}</td>
                 <td>${entry.paymentMethod || ''}</td>
                 <td>${entry.notes || ''}</td>
                 <td>${entry.recordedBy || ''}</td>
@@ -2555,7 +2649,12 @@ class PharmaStore {
         if (confirm('Are you sure you want to delete this entry?')) {
             const entry = this.pettyCash.find(e => e.id === id);
             if (entry) {
-                this.pettyCashBalance = (this.pettyCashBalance || 0) + (entry.amount || 0);
+                // Reverse the effect of the original entry on the balance
+                if (entry.type === 'income') {
+                    this.pettyCashBalance = (this.pettyCashBalance || 0) - (entry.amount || 0);
+                } else {
+                    this.pettyCashBalance = (this.pettyCashBalance || 0) + (entry.amount || 0);
+                }
                 this.saveData('pettyCashBalance', this.pettyCashBalance);
             }
             this.pettyCash = this.pettyCash.filter(e => e.id !== id);
@@ -2597,12 +2696,13 @@ class PharmaStore {
             id: Date.now().toString(),
             date: new Date().toISOString().split('T')[0],
             category: 'Balance Update',
-            description: `Balance updated from $${oldBalance.toFixed(2)} to $${newBalance.toFixed(2)}`,
+            description: `Balance updated from ₵${oldBalance.toFixed(2)} to ₵${newBalance.toFixed(2)}`,
             amount: newBalance - oldBalance,
             paymentMethod: 'Adjustment',
             notes: notes,
             recordedBy: this.currentUser?.username || 'unknown',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            type: (newBalance - oldBalance) >= 0 ? 'income' : 'expense'
         };
 
         this.pettyCash = this.pettyCash || [];
@@ -2610,7 +2710,7 @@ class PharmaStore {
         this.saveData('pettyCash', this.pettyCash);
 
         this.showMessage('Balance updated successfully', 'success');
-        this.logAuditEvent('petty_cash_balance_update', `Balance updated to $${newBalance.toFixed(2)}`);
+        this.logAuditEvent('petty_cash_balance_update', `Balance updated to ₵${newBalance.toFixed(2)}`);
         this.updatePettyCashSummary();
         this.renderPettyCash();
         this.toggleBalanceUpdateForm();
@@ -2696,8 +2796,8 @@ class PharmaStore {
             row.innerHTML = `
                 <td>${emp.name || ''}</td>
                 <td>${emp.position || ''}</td>
-                <td>$${(emp.grossPay || 0).toFixed(2)}</td>
-                <td>$${(emp.salary || 0).toFixed(2)}</td>
+                <td>₵${(emp.grossPay || 0).toFixed(2)}</td>
+                <td>₵${(emp.salary || 0).toFixed(2)}</td>
                 <td>${emp.phone || ''}</td>
                 <td>${this.formatDate(emp.startDate)}</td>
                 <td>
@@ -2788,7 +2888,7 @@ class PharmaStore {
         this.saveData('salaryPayments', this.salaryPayments);
 
         this.showMessage('Salary payment processed successfully', 'success');
-        this.logAuditEvent('salary_payment', `Processed salary for ${employee.name}: $${amount.toFixed(2)}`);
+        this.logAuditEvent('salary_payment', `Processed salary for ${employee.name}: ₵${amount.toFixed(2)}`);
         this.renderSalaryPayments();
 
         const form = document.getElementById('salaryPaymentForm');
@@ -2807,7 +2907,7 @@ class PharmaStore {
                 <td>${payment.employeeName || ''}</td>
                 <td>${payment.position || ''}</td>
                 <td>${payment.month || ''}</td>
-                <td>$${(payment.amount || 0).toFixed(2)}</td>
+                <td>₵${(payment.amount || 0).toFixed(2)}</td>
                 <td>${payment.paymentMethod || ''}</td>
                 <td>${payment.notes || ''}</td>
                 <td>${payment.processedBy || ''}</td>
@@ -2864,22 +2964,22 @@ class PharmaStore {
                 <h4>Earnings</h4>
                 <table class="report-table">
                     <tbody>
-                        <tr><td>Gross Pay</td><td>$${gross.toFixed(2)}</td></tr>
-                        <tr><td>Allowances</td><td>$${allowances.toFixed(2)}</td></tr>
+                        <tr><td>Gross Pay</td><td>₵${gross.toFixed(2)}</td></tr>
+                        <tr><td>Allowances</td><td>₵${allowances.toFixed(2)}</td></tr>
                     </tbody>
                 </table>
                 <h4>Deductions</h4>
                 <table class="report-table">
                     <tbody>
-                        <tr><td>Tax</td><td>$${tax.toFixed(2)}</td></tr>
-                        <tr><td>SSNIT</td><td>$${ssnit.toFixed(2)}</td></tr>
-                        <tr><td>Insurance</td><td>$${insurance.toFixed(2)}</td></tr>
+                        <tr><td>Tax</td><td>₵${tax.toFixed(2)}</td></tr>
+                        <tr><td>SSNIT</td><td>₵${ssnit.toFixed(2)}</td></tr>
+                        <tr><td>Insurance</td><td>₵${insurance.toFixed(2)}</td></tr>
                     </tbody>
                 </table>
                 <h4>Net Salary</h4>
                 <table class="report-table">
                     <tbody>
-                        <tr><td>Net Pay</td><td>$${net.toFixed(2)}</td></tr>
+                        <tr><td>Net Pay</td><td>₵${net.toFixed(2)}</td></tr>
                         <tr><td>Payment Method</td><td>${payment.paymentMethod || ''}</td></tr>
                         <tr><td>Notes</td><td>${payment.notes || ''}</td></tr>
                     </tbody>
