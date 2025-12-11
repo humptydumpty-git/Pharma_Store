@@ -60,6 +60,56 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* ===== APP FOOTER ===== */
+.app-footer {
+    margin-top: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(15, 23, 42, 0.04);
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.app-footer .footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.app-footer .footer-title {
+    font-weight: 600;
+    margin-right: 0.5rem;
+}
+
+.app-footer .footer-copy {
+    color: var(--text-tertiary);
+}
+
+.app-footer .footer-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    text-align: right;
+}
+
+.app-footer .footer-contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    justify-content: flex-end;
+}
+
+.app-footer a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.app-footer a:hover {
+    text-decoration: underline;
+}
+
 /* ===== LOGIN SCREEN ===== */
 .login-container {
     position: fixed;
