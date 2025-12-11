@@ -675,7 +675,8 @@ class PharmaStore {
         const mainApp = document.getElementById('mainApp');
         
         if (loginScreen) loginScreen.style.display = 'none';
-        if (mainApp) mainApp.style.display = 'block';
+        // Use flex so that the footer sits at the bottom of the page
+        if (mainApp) mainApp.style.display = 'flex';
         
         const userEl = document.getElementById('currentUser');
         if (userEl && this.currentUser) {
