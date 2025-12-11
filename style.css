@@ -1425,6 +1425,12 @@ tr:hover {
 
 .search-box input {
     padding-left: 2.5rem;
+    height: 54px; /* Match button height */
+    border-radius: 16px;
+    padding-right: 1.5rem;
+    border: 2px solid var(--border-color);
+    background: var(--bg-tertiary);
+    font-size: 0.95rem;
 }
 
 .receipt-container,
