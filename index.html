@@ -180,7 +180,7 @@
                             <i class="fas fa-cash-register"></i>
                             <h3>Today&apos;s Sales</h3>
                             <p class="section-description">Total sales processed today.</p>
-                            <h2 id="todaySales">$0.00</h2>
+                            <h2 id="todaySales">₵0.00</h2>
                         </div>
                         <div class="stat-card">
                             <i class="fas fa-stopwatch"></i>
@@ -314,7 +314,7 @@
                                     <input id="drugQuantity" type="number" min="0" required />
                                 </div>
                                 <div class="form-group">
-                                    <label for="drugPrice">Unit Price ($)</label>
+                                    <label for="drugPrice">Unit Price (GHS)</label>
                                     <input id="drugPrice" type="number" step="0.01" min="0" required />
                                 </div>
                                 <div class="form-group">
@@ -379,23 +379,23 @@
                         <div class="sale-summary-panel">
                             <div class="summary-chip">
                                 <span>Subtotal</span>
-                                <strong>$<span id="saleSubtotal">0.00</span></strong>
+                                <strong>₵<span id="saleSubtotal">0.00</span></strong>
                             </div>
                             <div class="summary-chip">
                                 <span id="saleTaxLabel">Tax (0.0%)</span>
-                                <strong>$<span id="saleTax">0.00</span></strong>
+                                <strong>₵<span id="saleTax">0.00</span></strong>
                             </div>
                             <div class="summary-chip">
                                 <span>Discount</span>
-                                <strong>$<span id="saleDiscount">0.00</span></strong>
+                                <strong>₵<span id="saleDiscount">0.00</span></strong>
                             </div>
                             <div class="summary-chip emphasis">
                                 <span>Grand Total</span>
-                                <strong>$<span id="saleGrandTotal">0.00</span></strong>
+                                <strong>₵<span id="saleGrandTotal">0.00</span></strong>
                             </div>
                             <div class="summary-chip">
                                 <span>Change Due</span>
-                                <strong>$<span id="saleChangeDue">0.00</span></strong>
+                                <strong>₵<span id="saleChangeDue">0.00</span></strong>
                             </div>
                         </div>
 
@@ -409,7 +409,7 @@
                                 <input id="discountRateInput" type="number" step="0.1" min="0" max="100" />
                             </div>
                             <div class="form-group">
-                                <label for="cashReceivedInput">Cash Received ($)</label>
+                                <label for="cashReceivedInput">Cash Received (GHS)</label>
                                 <input id="cashReceivedInput" type="number" step="0.01" min="0" />
                             </div>
                         </div>
@@ -587,7 +587,7 @@
                         <div class="dashboard-actions">
                             <div class="summary-chip">
                                 <span>Current Balance</span>
-                                <strong>$<span id="pettyCashBalanceDisplay">0.00</span></strong>
+                                <strong>₵<span id="pettyCashBalanceDisplay">0.00</span></strong>
                             </div>
                             <button id="updatePettyCashBalance" type="button" class="btn btn-secondary">
                                 <i class="fas fa-pen"></i>
@@ -599,7 +599,7 @@
                     <div id="updateBalanceForm" class="form-container" style="display:none;">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="newBalance">New Balance ($)</label>
+                                <label for="newBalance">New Balance (GHS)</label>
                                 <input id="newBalance" type="number" step="0.01" min="0" />
                             </div>
                             <div class="form-group">
@@ -637,7 +637,7 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="expenseAmount">Amount ($)</label>
+                                    <label for="expenseAmount">Amount (GHS)</label>
                                     <input id="expenseAmount" type="number" step="0.01" min="0" required />
                                 </div>
                             </div>
@@ -721,7 +721,7 @@
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="employeeGrossPay">Gross Pay ($)</label>
+                                    <label for="employeeGrossPay">Gross Pay (GHS)</label>
                                     <input id="employeeGrossPay" type="number" step="0.01" min="0" required />
                                 </div>
                                 <div class="form-group">
@@ -741,27 +741,27 @@
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="employeeAllowances">Allowances ($)</label>
+                                    <label for="employeeAllowances">Allowances (GHS)</label>
                                     <input id="employeeAllowances" type="number" step="0.01" min="0" value="0" />
                                 </div>
                                 <div class="form-group">
-                                    <label for="employeeTax">Tax ($)</label>
+                                    <label for="employeeTax">Tax (GHS)</label>
                                     <input id="employeeTax" type="number" step="0.01" min="0" value="0" />
                                 </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="employeeSSNIT">SSNIT ($)</label>
+                                    <label for="employeeSSNIT">SSNIT (GHS)</label>
                                     <input id="employeeSSNIT" type="number" step="0.01" min="0" value="0" />
                                 </div>
                                 <div class="form-group">
-                                    <label for="employeeInsurance">Insurance ($)</label>
+                                    <label for="employeeInsurance">Insurance (GHS)</label>
                                     <input id="employeeInsurance" type="number" step="0.01" min="0" value="0" />
                                 </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="employeeNetSalary">Net Salary ($)</label>
+                                    <label for="employeeNetSalary">Net Salary (GHS)</label>
                                     <input id="employeeNetSalary" type="number" step="0.01" min="0" readonly />
                                 </div>
                             </div>
@@ -809,7 +809,7 @@
                                     <input id="paymentMonth" type="month" required />
                                 </div>
                                 <div class="form-group">
-                                    <label for="paymentAmount">Amount ($)</label>
+                                    <label for="paymentAmount">Amount (GHS)</label>
                                     <input id="paymentAmount" type="number" step="0.01" min="0" required />
                                 </div>
                             </div>
@@ -926,7 +926,7 @@
                     <div class="report-summary">
                         <div class="summary-item">
                             <span class="label">Total Sales Amount</span>
-                            <span id="totalSalesAmount">$0.00</span>
+                            <span id="totalSalesAmount">₵0.00</span>
                         </div>
                         <div class="summary-item">
                             <span class="label">Total Items Sold / Drugs</span>

@@ -1006,7 +1006,7 @@ class PharmaStore {
         
         if (totalDrugsEl) totalDrugsEl.textContent = totalDrugs;
         if (lowStockEl) lowStockEl.textContent = lowStock;
-        if (todaySalesEl) todaySalesEl.textContent = `$${todaySales.toFixed(2)}`;
+        if (todaySalesEl) todaySalesEl.textContent = `₵${todaySales.toFixed(2)}`;
         if (expiringSoonEl) expiringSoonEl.textContent = expiringSoon;
     }
 
@@ -1217,7 +1217,7 @@ class PharmaStore {
                 <td>${drug.name || ''}</td>
                 <td>${drug.category || ''}</td>
                 <td class="${(drug.quantity || 0) <= 3 ? 'text-danger' : ''}">${drug.quantity || 0}</td>
-                <td>$${(drug.price || 0).toFixed(2)}</td>
+                <td>₵${(drug.price || 0).toFixed(2)}</td>
                 <td>${this.formatDate(drug.expiry)}</td>
                 <td>${drug.supplier || 'N/A'}</td>
                 <td>
@@ -1502,7 +1502,7 @@ class PharmaStore {
             this.sales.push(sale);
             createdSales.push(sale);
 
-            this.logAuditEvent('sale', `Sold ${sale.quantity} of ${sale.drugName} for $${sale.total.toFixed(2)}`);
+            this.logAuditEvent('sale', `Sold ${sale.quantity} of ${sale.drugName} for ₵${sale.total.toFixed(2)}`);
         }
 
         this.saveData('sales', this.sales);
@@ -1523,11 +1523,11 @@ class PharmaStore {
         const content = document.getElementById('receiptContent');
         if (container && content) {
             container.style.display = 'block';
-            const lines = items.map(i => `${i.drugName} x${i.qty} @ ${i.price.toFixed(2)} = ${i.total.toFixed(2)}`);
+            const lines = items.map(i => `${i.drugName} x${i.qty} @ ₵${i.price.toFixed(2)} = ₵${i.total.toFixed(2)}`);
             content.innerHTML = `
                 <strong>Sale</strong><br>
                 ${lines.join('<br>')}<hr>
-                <strong>Total: $${items.reduce((s,i)=>s+i.total,0).toFixed(2)}</strong>
+                <strong>Total: ₵${items.reduce((s,i)=>s+i.total,0).toFixed(2)}</strong>
             `;
         }
 
@@ -1539,7 +1539,7 @@ class PharmaStore {
             const qty = items.reduce((s,i)=>s+i.qty,0);
             const total = items.reduce((s,i)=>s+i.total,0).toFixed(2);
             const customer = document.getElementById('multiSaleCustomerName')?.value || 'Walk-in';
-            tr.innerHTML = `<td>${date}</td><td>${drugs}</td><td>${qty}</td><td>-</td><td>$${total}</td><td>${customer}</td>`;
+            tr.innerHTML = `<td>${date}</td><td>${drugs}</td><td>${qty}</td><td>-</td><td>₵${total}</td><td>${customer}</td>`;
             tbody.prepend(tr);
         }
     }
@@ -1555,8 +1555,8 @@ class PharmaStore {
                 <td>${sale.date || ''} ${sale.time || ''}</td>
                 <td>${sale.drugName || ''}</td>
                 <td>${sale.quantity || 0}</td>
-                <td>$${(sale.price || 0).toFixed(2)}</td>
-                <td>$${(sale.total || 0).toFixed(2)}</td>
+                <td>₵${(sale.price || 0).toFixed(2)}</td>
+                <td>₵${(sale.total || 0).toFixed(2)}</td>
                 <td>${sale.customerName || 'Walk-in'}</td>
                 <td>
                     <button class="btn-delete" onclick="pharmaStore.deleteSale('${sale.id}')">
@@ -1690,7 +1690,7 @@ class PharmaStore {
         const totalExpenses = todaysExpenses.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
 
         const net = totalSales - totalExpenses;
-        const summary = `EOD for ${this.formatDate(today)} - Sales: $${totalSales.toFixed(2)}, Expenses: $${totalExpenses.toFixed(2)}, Net: $${net.toFixed(2)}`;
+        const summary = `EOD for ${this.formatDate(today)} - Sales: ₵${totalSales.toFixed(2)}, Expenses: ₵${totalExpenses.toFixed(2)}, Net: ₵${net.toFixed(2)}`;
 
         this.showMessage(summary, 'info');
         this.logAuditEvent('end_of_day', summary);
@@ -1737,7 +1737,7 @@ class PharmaStore {
                     <span class="chart-row-label">${s.label}</span>
                     <div class="chart-bar">
                         <div class="chart-bar-fill" style="width:${width}%"></div>
-                        <span class="chart-bar-value">$${s.value.toFixed(2)}</span>
+                        <span class="chart-bar-value">₵${s.value.toFixed(2)}</span>
                     </div>
                 </div>
             `;
