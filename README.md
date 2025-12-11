@@ -166,12 +166,180 @@ The system is built with modern CSS and is easily customizable:
 
 Potential features for future development:
 - Barcode scanning
-- Advanced analytics
 - Multi-location support
-- Customer management
-- Supplier management
-- Automated reordering
 - Integration with external systems
+
+## Packaging as a Desktop App (Electron)
+
+You can wrap PharmaStore as a **Windows desktop application** so clients install it like a normal app (with an icon and Start menu entry) using [Electron](https://www.electronjs.org/). These steps are for **you as the developer**; your client only receives the final installer.
+
+### 1. Prerequisites (on your development machine)
+
+- **Windows 10+**
+- **Node.js** (LTS) from `https://nodejs.org`
+- Basic command‑line familiarity (PowerShell or Command Prompt)
+
+### 2. Initialise npm and install Electron
+
+From the `Pharma_Store` project folder:
+
+```bash
+npm init -y
+npm install --save-dev electron electron-builder
+```
+
+This creates a `package.json` and installs the tools needed to run and build the desktop app.
+
+### 3. Create the Electron main process file
+
+Create a new file in the project root named `main.js`:
+
+```js
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      contextIsolation: true
+    }
+  });
+
+  // Load the existing PharmaStore UI
+  win.loadFile(path.join(__dirname, 'index.html'));
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+```
+
+This simply opens your existing `index.html` inside a desktop window; no server is required for the packaged app.
+
+### 4. Configure `package.json` for building
+
+Open `package.json` and adjust it to include at least:
+
+```json
+{
+  "name": "pharmastore",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.yourcompany.pharmastore",
+    "productName": "PharmaStore",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "app.js",
+      "style.css",
+      "fonts.css",
+      "icons.css",
+      "manifest.json",
+      "offline.html",
+      "sw.js",
+      "src/**/*"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}
+```
+
+- Replace `icon.ico` with the path to your app icon (a `.ico` file with your logo).
+- Adjust `appId` and `productName` to match your brand.
+
+### 5. Run the app in development
+
+While developing, you can run the desktop app directly:
+
+```bash
+npm start
+```
+
+This opens PharmaStore in an Electron window using your local source files.
+
+### 6. Build a Windows installer (`.exe`)
+
+To produce the installer for your client:
+
+```bash
+npm run dist
+```
+
+Electron Builder will create a `dist/` folder containing:
+
+- An `.exe` **installer** (NSIS) for Windows.
+- Optionally a portable executable, depending on your config.
+
+You deliver **only** the installer (and any PDF docs) to your client; they do **not** need Node.js or the project source.
+
+### 7. What the client sees
+
+When the client runs the installer:
+
+- A standard **Windows setup wizard** appears (with your app name and icon).
+- After installation they get:
+  - A **desktop shortcut** (icon).
+  - A **Start Menu** entry for PharmaStore.
+  - An entry in **Add/Remove Programs** to uninstall.
+
+The underlying HTML/CSS/JS is bundled inside the Electron app and is not exposed as loose files.
+
+## Admin Quick Start (Production Deployment)
+
+This is a short checklist for setting up PharmaStore on a client machine:
+
+1. **Install the app**
+   - Run the generated `.exe` from the `dist/` folder on the client Windows PC.
+   - Follow the installer steps until completion.
+2. **First login as admin**
+   - Launch PharmaStore from the desktop icon.
+   - Log in with the default admin credentials:
+     - Username: `admin`
+     - Password: `password123`
+   - Immediately go to the **Change Password** dialog and set a strong new password.
+3. **Set Admin PIN for sensitive actions**
+   - Attempt to use **Import Data** or **Clear All Data**.
+   - When prompted, set a **4-digit admin PIN** known only to the owner/manager.
+   - This PIN will be required for future imports or data wipes.
+4. **Configure basics**
+   - Review default **tax rate** and **discount** settings in Sales.
+   - Check the **default OTC drugs list** in Drugs, and adjust quantities, prices, and suppliers.
+5. **Test backup and restore once**
+   - From **Dashboard** or **Reports**, run **Backup now / Export Data** and save the JSON to a USB drive.
+   - On a test machine, install the app, then use **Import Data** with that file to confirm data restores correctly.
+6. **Train staff**
+   - Provide staff with the `STAFF-SOP.md` (or a PDF copy) for:
+     - Login / logout.
+     - Sales and receipts.
+     - Petty cash and EOD.
+     - Running backups.
+
+With these steps, you can deliver PharmaStore as a polished desktop application while keeping your source code and build process under your control.
 
 ## Support
 
