@@ -1293,9 +1293,18 @@ class PharmaStore {
 
         this.drugs.forEach(d => {
             const price = Number(d.price || 0).toFixed(2);
+            const qty = Number(d.quantity) || 0;
             const optionHtml = `<option value="${d.id}" data-price="${price}">${d.name}</option>`;
-            if (saleSelect) saleSelect.insertAdjacentHTML('beforeend', optionHtml);
-            if (adjustmentSelect) adjustmentSelect.insertAdjacentHTML('beforeend', optionHtml);
+
+            // Only drugs with available stock should be selectable for sales
+            if (saleSelect && qty > 0) {
+                saleSelect.insertAdjacentHTML('beforeend', optionHtml);
+            }
+
+            // Stock adjustments may still need to see all drugs (including zero stock)
+            if (adjustmentSelect) {
+                adjustmentSelect.insertAdjacentHTML('beforeend', optionHtml);
+            }
         });
     }
 
@@ -1793,9 +1802,12 @@ class PharmaStore {
         const totalSales = filteredSales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
         const totalItems = filteredSales.reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0);
 
+        // For inventory reports, only count drugs that have stock available
+        const inventoryDrugs = (this.drugs || []).filter(drug => (Number(drug.quantity) || 0) > 0);
+
         document.getElementById('totalSalesAmount').textContent = `$${totalSales.toFixed(2)}`;
-        document.getElementById('totalItemsSold').textContent = type === 'inventory' ? this.drugs.length : totalItems;
-        document.getElementById('totalTransactions').textContent = type === 'inventory' ? this.drugs.length : filteredSales.length;
+        document.getElementById('totalItemsSold').textContent = type === 'inventory' ? inventoryDrugs.length : totalItems;
+        document.getElementById('totalTransactions').textContent = type === 'inventory' ? inventoryDrugs.length : filteredSales.length;
 
         if (reportTitle) {
             reportTitle.textContent = `${label} Report`;
@@ -1806,7 +1818,7 @@ class PharmaStore {
 
         if (reportContent) {
             if (type === 'inventory') {
-                const rows = (this.drugs || []).map(drug => `
+                const rows = inventoryDrugs.map(drug => `
                     <tr>
                         <td>${drug.name || ''}</td>
                         <td>${drug.category || ''}</td>

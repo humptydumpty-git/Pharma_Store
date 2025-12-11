@@ -21,7 +21,11 @@
             const currentStock = inventoryMap.has(id) ? inventoryMap.get(id) : null;
             if (currentStock === null) {
                 issues.push(`Drug not found: ${item.drugName || id}`);
+            } else if (currentStock <= 0) {
+                // Do not allow selling a drug that has zero (or negative) quantity available
+                issues.push(`Cannot sell ${item.drugName || id}: no stock available`);
             } else if (requestedQty > currentStock) {
+                // Do not allow selling more than the quantity currently available
                 issues.push(`Insufficient stock for ${item.drugName || id} (have ${currentStock}, need ${requestedQty})`);
             }
         }
