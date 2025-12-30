@@ -159,10 +159,6 @@
                         <i class="fas fa-clipboard-list"></i>
                         <span>Audit</span>
                     </button>
-                    <button class="nav-btn admin-only" data-section="admin" type="button">
-                        <i class="fas fa-user-shield"></i>
-                        <span>Admin</span>
-                    </button>
                     <button class="nav-btn" data-section="contact" type="button">
                         <i class="fas fa-envelope"></i>
                         <span>Contact</span>
@@ -1077,72 +1073,6 @@
                         </table>
                     </div>
                 </section>
-
-                <!-- Admin Section -->
-                <section id="admin" class="content-section admin-only" aria-label="Admin Panel">
-                    <div class="section-header">
-                        <div>
-                            <h2>Admin Panel</h2>
-                            <p class="section-description">User management and system tools.</p>
-                        </div>
-                        <div class="dashboard-actions">
-                            <button type="button" class="admin-btn" onclick="clearAllData()">
-                                <i class="fas fa-trash-alt"></i>
-                                <span>Clear All Data</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="form-container">
-                        <h3>Add User</h3>
-                        <form id="addUserForm">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="newUsername">Username</label>
-                                    <input id="newUsername" type="text" required />
-                                </div>
-                                <div class="form-group">
-                                    <label for="newPassword">Password</label>
-                                    <input id="newPassword" type="password" required />
-                                </div>
-                                <div class="form-group">
-                                    <label for="newUserType">Role</label>
-                                    <select id="newUserType" required>
-                                        <option value="user">User</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-user-plus"></i>
-                                    <span>Create User</span>
-                                </button>
-                                <button type="button" class="btn btn-secondary" onclick="cancelEditUser()">
-                                    <i class="fas fa-times"></i>
-                                    <span>Cancel</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div class="table-container">
-                        <h3>Users</h3>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Username</th>
-                                    <th>Role</th>
-                                    <th>Created</th>
-                                    <th>Photo</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersTableBody"></tbody>
-                        </table>
-                    </div>
-        </section>
 
                 <!-- Change Password Modal -->
                 <div id="changePasswordModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
