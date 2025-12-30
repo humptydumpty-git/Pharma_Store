@@ -5,13 +5,7 @@ const urlsToCache = [
   '/offline.html',
   '/style.css',
   '/app.js',
-  '/manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-  'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js',
-  'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js',
-  'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js'
+  '/manifest.json'
 ];
 
 // Install event - cache resources
@@ -58,13 +52,6 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   console.log('Service Worker: Fetch', event.request.url);
   
-  // Skip Firebase requests
-  if (event.request.url.includes('firebase') || 
-      event.request.url.includes('googleapis') ||
-      event.request.url.includes('gstatic')) {
-    return;
-  }
-
   // For navigations (HTML pages), always try network first so new code deploys correctly
   if (event.request.mode === 'navigate' || event.request.destination === 'document') {
     event.respondWith(
@@ -203,9 +190,8 @@ async function getOfflineData() {
 
 // Send offline data to server
 async function sendOfflineDataToServer(data) {
-  // This would integrate with your Firebase backend
-  console.log('Sending offline data to server:', data);
-  // Implementation depends on your Firebase setup
+  // Placeholder for future integration (e.g. Supabase Edge Function or custom API)
+  console.log('Sending offline data to server (placeholder):', data);
 }
 
 // Clear offline data
