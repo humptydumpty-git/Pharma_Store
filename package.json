@@ -1,0 +1,21 @@
+{
+  "name": "pharma-store",
+  "version": "1.0.0",
+  "description": "Modern pharmacy management system for professional drugstores",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "pharmacy",
+    "management",
+    "drugstore"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.0"
+  }
+}
