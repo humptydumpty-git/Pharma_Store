@@ -1,0 +1,35 @@
+(function (root, factory) {
+    if (typeof module === 'object' && module.exports) {
+        module.exports = factory();
+    } else {
+        root.PharmaSupabase = factory();
+    }
+}(typeof self !== 'undefined' ? self : this, function () {
+    let client = null;
+
+    function getSupabaseClient() {
+        if (client) return client;
+
+        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';       // TODO: replace
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY';                // TODO: replace
+
+        if (!root.supabase) {
+            console.warn('Supabase JS library not found on window.supabase. Include the UMD bundle in index.html.');
+            return null;
+        }
+
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.includes('YOUR_PROJECT_ID')) {
+            console.warn('Supabase URL/anon key not configured. Edit src/services/supabaseClient.js.');
+            return null;
+        }
+
+        client = root.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        return client;
+    }
+
+    return {
+        getSupabaseClient
+    };
+}));
+
+

@@ -1111,6 +1111,10 @@ class PharmaStore {
         window.addEventListener('online', () => {
             this.isOnline = true;
             this.updateSyncStatus();
+            // Attempt background sync when connection returns
+            if (window.PharmaSync) {
+                window.PharmaSync.syncAll(this);
+            }
         });
         
         window.addEventListener('offline', () => {
