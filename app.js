@@ -482,8 +482,9 @@ class PharmaStore {
 
         if (supabaseClient && this.isOnline) {
             const ok = await this.handleSupabaseLogin(supabaseClient);
-            // If Supabase login fails due to auth error, do not fall back silently
-            return ok;
+            // Hybrid mode: if Supabase login fails (e.g., legacy/local account),
+            // automatically fall back to the local login mechanism.
+            if (ok) return true;
         }
 
         return await this.handleLocalLogin();
