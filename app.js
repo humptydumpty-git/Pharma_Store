@@ -43,7 +43,8 @@ class PharmaStore {
         this.currentLanguage = this.loadData('language') || 'en';
         this.translations = this.getTranslations();
         this.isOnline = navigator.onLine;
-        this.cloudSyncEnabled = false; // Disable cloud sync
+        // Enable cloud sync (Supabase) by default now that the client and schema are configured
+        this.cloudSyncEnabled = true;
         
         // Theme management
         this.currentTheme = this.loadData('theme') || 'light';
