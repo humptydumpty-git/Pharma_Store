@@ -10,8 +10,8 @@
     function getSupabaseClient() {
         if (client) return client;
 
-        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';       // TODO: replace
-        const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY';                // TODO: replace
+        const SUPABASE_URL = 'https://zgnyabbjvfnwchpwzfgl.supabase.co';       // TODO: replace
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbnlhYmJqdmZud2NocHd6ZmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNDA0NDcsImV4cCI6MjA4MjYxNjQ0N30.NbIB_JUrCco-ZNex4rnE-ImApQjA-zljWKy3qVIbtDU';                // TODO: replace
 
         if (!root.supabase) {
             console.warn('Supabase JS library not found on window.supabase. Include the UMD bundle in index.html.');
