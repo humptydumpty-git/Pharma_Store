@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pharmastore-v1.0.0';
+const CACHE_NAME = 'pharmastore-v1.1.0';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -54,7 +54,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network-first for HTML, cache-first for assets
 self.addEventListener('fetch', (event) => {
   console.log('Service Worker: Fetch', event.request.url);
   
@@ -65,33 +65,36 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // For navigations (HTML pages), always try network first so new code deploys correctly
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache a copy of the fresh HTML
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cached page or offline page
+          return caches.match(event.request).then((cached) => cached || caches.match('/offline.html'));
+        })
+    );
+    return;
+  }
+
+  // For other assets, use cache-first for offline performance
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request)
-          .then((fetchResponse) => {
-            // Check if valid response
-            if (!fetchResponse || fetchResponse.status !== 200 || fetchResponse.type !== 'basic') {
-              return fetchResponse;
-            }
-
-            // Clone the response
-            const responseToCache = fetchResponse.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return fetchResponse;
-          })
-          .catch(() => {
-            if (event.request.destination === 'document') {
-              return caches.match('/offline.html');
-            }
-          });
-      })
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request).then((fetchResponse) => {
+        if (!fetchResponse || fetchResponse.status !== 200 || fetchResponse.type !== 'basic') {
+          return fetchResponse;
+        }
+        const responseToCache = fetchResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        return fetchResponse;
+      });
+    })
   );
 });
 
