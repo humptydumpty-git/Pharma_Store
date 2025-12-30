@@ -26,38 +26,58 @@
     <!-- Login Screen -->
     <div id="loginScreen" class="login-container" role="dialog" aria-labelledby="loginTitle" aria-modal="true">
         <div class="login-card" role="document">
-            <div class="login-brand">
-                <div class="login-logo">
-                    <i class="fas fa-pills"></i>
+            <div class="login-layout">
+                <div class="login-visual">
+                    <div class="login-visual-overlay"></div>
+                    <div class="login-pill-grid" aria-hidden="true">
+                        <i class="fas fa-pills"></i>
+                        <i class="fas fa-capsules"></i>
+                        <i class="fas fa-pills"></i>
+                        <i class="fas fa-capsules"></i>
+                        <i class="fas fa-pills"></i>
+                        <i class="fas fa-capsules"></i>
+                    </div>
+                    <div class="login-visual-text">
+                        <h2>PharmaStore</h2>
+                        <p>Modern pharmacy management for professional drugstores.</p>
+                    </div>
                 </div>
-                <div>
-                    <h2 id="loginTitle" class="login-form-title">PharmaStore</h2>
-                    <p class="login-hint">Secure offline pharmacy management</p>
+
+                <div class="login-form-wrapper">
+                    <div class="login-brand">
+                        <div class="login-logo">
+                            <i class="fas fa-pills"></i>
+                        </div>
+                        <div>
+                            <h2 id="loginTitle" class="login-form-title">Welcome back</h2>
+                            <p class="login-hint">Sign in to manage your pharmacy securely.</p>
+                        </div>
+                    </div>
+
+                    <form id="loginForm" class="login-form" autocomplete="on" novalidate>
+                        <label for="username">Email</label>
+                        <input id="username" name="username" type="email" required placeholder="Enter email" autocomplete="email" />
+
+                        <label for="password">Password</label>
+                        <input id="password" name="password" type="password" required placeholder="Enter password" autocomplete="current-password" />
+
+                        <div class="form-group" style="margin-top:0.5rem;">
+                            <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500;">
+                                <input id="rememberMe" type="checkbox" style="width:auto;"/>
+                                <span>Remember me on this device</span>
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt"></i>
+                                <span>Login</span>
+                            </button>
+                        </div>
+                        <div id="loginMessage" class="message info" aria-live="polite" style="display:none;"></div>
+                    </form>
                 </div>
             </div>
-
-            <form id="loginForm" class="login-form" autocomplete="on" novalidate>
-                <label for="username">Username</label>
-                <input id="username" name="username" type="text" required placeholder="Enter username" autocomplete="username" />
-
-                <label for="password">Password</label>
-                <input id="password" name="password" type="password" required placeholder="Enter password" autocomplete="current-password" />
-
-                <div class="form-group" style="margin-top:0.5rem;">
-                    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500;">
-                        <input id="rememberMe" type="checkbox" style="width:auto;"/>
-                        <span>Remember me on this device</span>
-                    </label>
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-sign-in-alt"></i>
-                        <span>Login</span>
-                    </button>
-                </div>
-                <div id="loginMessage" class="message info" aria-live="polite" style="display:none;"></div>
-            </form>
         </div>
     </div>
 
@@ -65,19 +85,22 @@
     <div id="mainApp" class="app-root" style="display:none;">
         <!-- App Header -->
         <header class="app-header">
-            <div class="header-left">
-                <i class="fas fa-pills" aria-hidden="true"></i>
-                <div>
-                    <h1>PharmaStore</h1>
-                    <span class="text-muted">Offline drugstore management</span>
+                <div class="header-left">
+                    <i class="fas fa-pills" aria-hidden="true"></i>
+                    <div>
+                        <h1>PharmaStore</h1>
+                        <span class="text-muted" id="storeNameBadge">Your Store</span>
+                    </div>
                 </div>
-            </div>
             <div class="header-right">
                 <div class="sync-status">
                     <div id="syncStatus" class="status-indicator offline">
                         <i class="fas fa-circle"></i>
                         <span>Offline</span>
                     </div>
+                    <button id="syncNowBtn" class="sync-btn" type="button" title="Sync with cloud">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                 </div>
                 <div class="user-info">
                     <span id="currentUser">Guest</span>

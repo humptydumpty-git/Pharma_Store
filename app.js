@@ -473,8 +473,24 @@ class PharmaStore {
         return false;
     }
 
-    // Authentication
+    // Authentication - primary entry point
     async handleLogin() {
+        // Prefer Supabase Auth when available; fall back to local users when offline
+        const supabaseClient = window.PharmaSupabase?.getSupabaseClient
+            ? window.PharmaSupabase.getSupabaseClient()
+            : null;
+
+        if (supabaseClient && this.isOnline) {
+            const ok = await this.handleSupabaseLogin(supabaseClient);
+            // If Supabase login fails due to auth error, do not fall back silently
+            return ok;
+        }
+
+        return await this.handleLocalLogin();
+    }
+
+    // Legacy/local login (offline fallback)
+    async handleLocalLogin() {
         try {
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
@@ -532,7 +548,7 @@ class PharmaStore {
                 }
                 
                 // Persist lightweight session so refresh does not log the user out
-                this.saveUserSession();
+                this.saveUserSession({ mode: 'local', username });
 
                 // Log the login event
                 this.logAuditEvent('login', 'User ' + username + ' logged in');
@@ -659,10 +675,14 @@ class PharmaStore {
         }
     }
 
-    saveUserSession() {
+    saveUserSession(payload) {
         try {
-            if (this.currentUser) {
+            if (payload) {
+                this.saveData('currentUserSession', payload);
+            } else if (this.currentUser) {
+                // Backwards-compatible: default to local mode with username if no payload is provided
                 this.saveData('currentUserSession', {
+                    mode: 'local',
                     username: this.currentUser.username
                 });
             } else {
@@ -681,26 +701,171 @@ class PharmaStore {
         }
     }
 
-    restoreUserSession() {
-        try {
-            const session = this.loadData('currentUserSession');
-            if (!session || !session.username) return;
+    async handleSupabaseLogin(supabaseClient) {
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginMessage = document.getElementById('loginMessage');
 
-            const user = (this.users || []).find(u => u.username === session.username);
-            if (!user) {
-                this.clearUserSession();
-                return;
+        if (!usernameInput || !passwordInput || !loginMessage) {
+            console.error('Required login elements not found');
+            return false;
+        }
+
+        const email = usernameInput.value.trim();
+        const password = passwordInput.value;
+        const rememberMe = document.getElementById('rememberMe')?.checked;
+
+        if (!email || !password) {
+            loginMessage.textContent = 'Please enter both email and password';
+            loginMessage.style.color = 'red';
+            loginMessage.style.display = 'block';
+            return false;
+        }
+
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (error || !data.session || !data.user) {
+                loginMessage.textContent = 'Invalid email or password';
+                loginMessage.style.color = 'red';
+                loginMessage.style.display = 'block';
+                this.logAuditEvent('login_failed', 'Failed Supabase login attempt for email: ' + email);
+                return false;
             }
 
-            this.currentUser = user;
-            this.isAdmin = user.type === 'admin';
+            // Optionally remember email locally
+            if (rememberMe) {
+                this.saveData('rememberedCredentials', { username: email });
+            } else {
+                try {
+                    localStorage.removeItem('rememberedCredentials');
+                } catch (e) {
+                    console.warn('Unable to clear remembered credentials', e);
+                }
+            }
 
-            // Show the main app as if the user just logged in
+            await this.bootstrapSupabaseContext(supabaseClient, data.user);
+
+            // Persist Supabase session reference for refresh
+            this.saveUserSession({
+                mode: 'supabase',
+                userId: data.user.id,
+                tenantId: this.currentTenantId || null
+            });
+
+            return true;
+        } catch (err) {
+            console.error('Supabase login error:', err);
+            if (loginMessage) {
+                loginMessage.textContent = 'An error occurred during login. Please try again.';
+                loginMessage.style.color = 'red';
+                loginMessage.style.display = 'block';
+            }
+            return false;
+        }
+    }
+
+    async bootstrapSupabaseContext(supabaseClient, user, presetTenantId) {
+        try {
+            // Determine tenant membership
+            let tenantId = presetTenantId || null;
+            let role = 'user';
+
+            if (!tenantId) {
+                const { data: member, error: memberError } = await supabaseClient
+                    .from('tenant_members')
+                    .select('tenant_id, role')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (memberError) {
+                    console.warn('Failed to load tenant_members for user', memberError);
+                }
+
+                if (member && member.tenant_id) {
+                    tenantId = member.tenant_id;
+                    role = member.role || 'user';
+                }
+            }
+
+            let tenantName = null;
+            if (tenantId) {
+                const { data: tenant, error: tenantError } = await supabaseClient
+                    .from('tenants')
+                    .select('id, name')
+                    .eq('id', tenantId)
+                    .maybeSingle();
+
+                if (!tenantError && tenant) {
+                    tenantName = tenant.name;
+                }
+            }
+
+            this.currentTenantId = tenantId || null;
+            this.currentTenantName = tenantName || null;
+
+            // Map Supabase user to currentUser model
+            this.currentUser = {
+                id: user.id,
+                username: user.email || user.id,
+                type: (role === 'owner' || role === 'admin') ? 'admin' : 'user',
+                isSupabase: true,
+                supabaseRole: role
+            };
+            this.isAdmin = (role === 'owner' || role === 'admin');
+
+            // Show app
             this.showMainApp();
             if (this.updateDashboard) this.updateDashboard();
             if (this.populateSalesDrugs) this.populateSalesDrugs();
             if (this.renderDrugs) this.renderDrugs();
             if (this.renderSales) this.renderSales();
+
+            this.logAuditEvent('login', 'Supabase user ' + (user.email || user.id) + ' logged in');
+        } catch (e) {
+            console.error('Failed to bootstrap Supabase context', e);
+        }
+    }
+
+    restoreUserSession() {
+        try {
+            const session = this.loadData('currentUserSession');
+            if (!session || !session.mode) return;
+
+            if (session.mode === 'local' && session.username) {
+                const user = (this.users || []).find(u => u.username === session.username);
+                if (!user) {
+                    this.clearUserSession();
+                    return;
+                }
+                this.currentUser = user;
+                this.isAdmin = user.type === 'admin';
+
+                // Show the main app as if the user just logged in
+                this.showMainApp();
+                if (this.updateDashboard) this.updateDashboard();
+                if (this.populateSalesDrugs) this.populateSalesDrugs();
+                if (this.renderDrugs) this.renderDrugs();
+                if (this.renderSales) this.renderSales();
+            } else if (session.mode === 'supabase' && session.userId) {
+                const supabaseClient = window.PharmaSupabase?.getSupabaseClient
+                    ? window.PharmaSupabase.getSupabaseClient()
+                    : null;
+                if (!supabaseClient) return;
+
+                supabaseClient.auth.getSession().then(async ({ data, error }) => {
+                    if (error || !data.session || data.session.user.id !== session.userId) {
+                        this.clearUserSession();
+                        return;
+                    }
+                    await this.bootstrapSupabaseContext(supabaseClient, data.session.user, session.tenantId);
+                }).catch(() => {
+                    this.clearUserSession();
+                });
+            }
         } catch (e) {
             console.warn('Unable to restore user session', e);
         }
@@ -735,6 +900,11 @@ class PharmaStore {
             userEl.textContent = `${this.currentUser.username} (${this.currentUser.type || 'user'})`;
         }
 
+        const storeNameBadge = document.getElementById('storeNameBadge');
+        if (storeNameBadge) {
+            storeNameBadge.textContent = this.currentTenantName || 'Your Store';
+        }
+
         // Show/hide admin-only UI
         document.querySelectorAll('.admin-only').forEach(el => {
             el.style.display = this.isAdmin ? '' : 'none';
@@ -764,6 +934,14 @@ class PharmaStore {
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
+
+        // Manual cloud sync button
+        const syncNowBtn = document.getElementById('syncNowBtn');
+        if (syncNowBtn && window.PharmaSync) {
+            syncNowBtn.addEventListener('click', () => {
+                window.PharmaSync.syncAll(this);
+            });
         }
 
         // Navigation buttons
