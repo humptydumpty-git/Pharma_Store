@@ -184,6 +184,10 @@
                                 <i class="fas fa-stopwatch"></i>
                                 <span>End of Day (EOD)</span>
                             </button>
+                            <button type="button" class="action-btn admin-only" onclick="openAddUserModal()">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Create User</span>
+                            </button>
                         </div>
                     </div>
 
@@ -1074,6 +1078,44 @@
                     </div>
                 </section>
 
+                <!-- Create User Modal -->
+                <div id="addUserModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="addUserTitle">
+                    <div class="modal-content">
+                        <h3 id="addUserTitle">Create User</h3>
+                        <form id="addUserForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUsername">Username</label>
+                                    <input id="newUsername" type="text" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="newPassword">Password</label>
+                                    <input id="newPassword" type="password" required />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUserType">Role</label>
+                                    <select id="newUserType" required>
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Create User</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="closeAddUserModal()">
+                                    <i class="fas fa-times"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Change Password Modal -->
                 <div id="changePasswordModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
                     <div class="modal-content">
@@ -1153,5 +1195,19 @@
 
     <!-- app.js -->
     <script src="app.js" defer></script>
+
+    <!-- Expose modal helpers for HTML onclick handlers -->
+    <script>
+        function openAddUserModal() {
+            if (window.pharmaStore && typeof window.pharmaStore.openAddUserModal === 'function') {
+                window.pharmaStore.openAddUserModal();
+            }
+        }
+        function closeAddUserModal() {
+            if (window.pharmaStore && typeof window.pharmaStore.closeAddUserModal === 'function') {
+                window.pharmaStore.closeAddUserModal();
+            }
+        }
+    </script>
 </body>
 </html>

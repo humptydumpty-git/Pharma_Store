@@ -75,8 +75,9 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(8px);
+    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.95)),
+                url('assets/drugs.webp') center/cover no-repeat;
+    backdrop-filter: blur(4px);
     animation: fadeIn 0.4s ease;
 }
 

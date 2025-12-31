@@ -702,6 +702,20 @@ class PharmaStore {
         }
     }
 
+    openAddUserModal() {
+        if (!this.isAdmin) {
+            this.showMessage('Only admins can add users', 'error');
+            return;
+        }
+        const modal = document.getElementById('addUserModal');
+        if (modal) modal.style.display = 'block';
+    }
+
+    closeAddUserModal() {
+        const modal = document.getElementById('addUserModal');
+        if (modal) modal.style.display = 'none';
+    }
+
     async handleSupabaseLogin(supabaseClient) {
         const usernameInput = document.getElementById('username');
         const passwordInput = document.getElementById('password');
