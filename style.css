@@ -240,6 +240,27 @@ body {
     outline: none;
 }
 
+.login-form .form-actions {
+    margin-top: 1.5rem;
+}
+
+.login-form .btn-primary {
+    width: 100%;
+    min-height: auto;
+    padding: 0.875rem 1rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    background: var(--accent-primary);
+    box-shadow: 0 8px 18px rgba(102, 126, 234, 0.35);
+}
+
+.login-form .btn-primary i {
+    font-size: 0.95rem;
+}
+
 @media (max-width: 768px) {
     .login-layout {
         grid-template-columns: minmax(0, 1fr);
