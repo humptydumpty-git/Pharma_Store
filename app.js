@@ -2607,6 +2607,32 @@ class PharmaStore {
             return;
         }
 
+        // Attempt to create a Supabase-backed user as well when available
+        const supabaseClient = window.PharmaSupabase?.getSupabaseClient
+            ? window.PharmaSupabase.getSupabaseClient()
+            : null;
+        if (supabaseClient && this.currentUser?.isSupabase && this.currentTenantId) {
+            try {
+                const { data: inviteResult, error: inviteError } = await supabaseClient
+                    .functions
+                    .invoke('invite-tenant-user', {
+                        body: {
+                            email: username,
+                            role: userType,
+                            password
+                        }
+                    });
+
+                if (inviteError) {
+                    console.warn('Supabase invite-tenant-user error', inviteError);
+                } else {
+                    console.log('Supabase user invited/created', inviteResult);
+                }
+            } catch (e) {
+                console.warn('Supabase invite-tenant-user invocation failed', e);
+            }
+        }
+
         const passwordHash = await this.hashString(password);
 
         const newUser = {
