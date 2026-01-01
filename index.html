@@ -54,7 +54,12 @@
                         </div>
                     </div>
 
-                    <form id="loginForm" class="login-form" autocomplete="on" novalidate>
+                    <div class="auth-tabs">
+                        <button type="button" class="auth-tab auth-tab-active" data-auth-tab="login">Login</button>
+                        <button type="button" class="auth-tab" data-auth-tab="signup">Store Owner Sign Up</button>
+                    </div>
+
+                    <form id="loginForm" class="login-form auth-panel auth-panel-active" autocomplete="on" novalidate>
                         <label for="username">Email</label>
                         <input id="username" name="username" type="email" required placeholder="Enter email" autocomplete="email" />
 
@@ -75,6 +80,34 @@
                             </button>
                         </div>
                         <div id="loginMessage" class="message info" aria-live="polite" style="display:none;"></div>
+                    </form>
+
+                    <form id="ownerSignupForm" class="login-form auth-panel" autocomplete="on" novalidate>
+                        <label for="signupStoreName">Store Name</label>
+                        <input id="signupStoreName" type="text" required placeholder="e.g. Grace Pharmacy, Adenta" />
+
+                        <label for="signupOwnerName">Owner Name</label>
+                        <input id="signupOwnerName" type="text" required placeholder="Your full name" />
+
+                        <label for="signupEmail">Email</label>
+                        <input id="signupEmail" type="email" required placeholder="Owner email" autocomplete="email" />
+
+                        <label for="signupPhone">Telephone</label>
+                        <input id="signupPhone" type="tel" required placeholder="e.g. 0240..." />
+
+                        <label for="signupPassword">Password</label>
+                        <input id="signupPassword" type="password" required placeholder="Create password" autocomplete="new-password" />
+
+                        <label for="signupPassword2">Confirm Password</label>
+                        <input id="signupPassword2" type="password" required placeholder="Confirm password" autocomplete="new-password" />
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-store"></i>
+                                <span>Create Store Account</span>
+                            </button>
+                        </div>
+                        <div id="signupMessage" class="message info" aria-live="polite" style="display:none;"></div>
                     </form>
                 </div>
             </div>
@@ -1196,7 +1229,7 @@
     <!-- app.js -->
     <script src="app.js" defer></script>
 
-    <!-- Expose modal helpers for HTML onclick handlers -->
+    <!-- Expose modal helpers and auth-tab behavior -->
     <script>
         function openAddUserModal() {
             if (window.pharmaStore && typeof window.pharmaStore.openAddUserModal === 'function') {
@@ -1208,6 +1241,25 @@
                 window.pharmaStore.closeAddUserModal();
             }
         }
+
+        // Auth tab switching
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.auth-tab');
+            const panels = document.querySelectorAll('.auth-panel');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.getAttribute('data-auth-tab');
+                    tabs.forEach(t => t.classList.remove('auth-tab-active'));
+                    panels.forEach(p => p.classList.remove('auth-panel-active'));
+
+                    tab.classList.add('auth-tab-active');
+                    const panelId = target === 'login' ? 'loginForm' : 'ownerSignupForm';
+                    const activePanel = document.getElementById(panelId);
+                    if (activePanel) activePanel.classList.add('auth-panel-active');
+                });
+            });
+        });
     </script>
 </body>
 </html>

@@ -596,6 +596,68 @@ class PharmaStore {
         }
     }
 
+    async handleOwnerSignup() {
+        const signupMessage = document.getElementById('signupMessage');
+        const storeName = document.getElementById('signupStoreName')?.value.trim();
+        const ownerName = document.getElementById('signupOwnerName')?.value.trim();
+        const email = document.getElementById('signupEmail')?.value.trim();
+        const phone = document.getElementById('signupPhone')?.value.trim();
+        const password = document.getElementById('signupPassword')?.value || '';
+        const password2 = document.getElementById('signupPassword2')?.value || '';
+
+        if (!signupMessage) return;
+
+        const fail = (msg) => {
+            signupMessage.textContent = msg;
+            signupMessage.style.color = 'red';
+            signupMessage.style.display = 'block';
+        };
+
+        if (!storeName || !ownerName || !email || !phone || !password || !password2) {
+            return fail('Please fill in all fields.');
+        }
+        if (password !== password2) {
+            return fail('Passwords do not match.');
+        }
+
+        const supabaseClient = window.PharmaSupabase?.getSupabaseClient
+            ? window.PharmaSupabase.getSupabaseClient()
+            : null;
+
+        if (!supabaseClient) {
+            return fail('Online sign up is not available. Please check your internet or contact support.');
+        }
+
+        try {
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        owner_name: ownerName,
+                        store_name: storeName,
+                        phone,
+                    },
+                },
+            });
+
+            if (error) {
+                console.error('Owner signup error', error);
+                return fail(error.message || 'Unable to create account. Please try again.');
+            }
+
+            signupMessage.textContent =
+                'Account created. Please check your email (' +
+                email +
+                ') to verify your address. After verification, log in using the Login tab.';
+            signupMessage.style.color = 'green';
+            signupMessage.style.display = 'block';
+        } catch (e) {
+            console.error('Owner signup exception', e);
+            return fail('Unexpected error during sign up. Please try again.');
+        }
+    }
+
     // Log audit event helper method
     logAuditEvent(action, details) {
         try {
@@ -803,6 +865,27 @@ class PharmaStore {
                 if (member && member.tenant_id) {
                     tenantId = member.tenant_id;
                     role = member.role || 'user';
+                } else {
+                    // No tenant yet: likely first login after owner signup.
+                    try {
+                        const { data: tenantCreate, error: tenantCreateError } =
+                            await supabaseClient.functions.invoke('create-tenant', {
+                                body: {
+                                    store_name: user.user_metadata?.store_name || 'My Pharmacy',
+                                    owner_name: user.user_metadata?.owner_name || (user.email || 'Owner'),
+                                    phone: user.user_metadata?.phone || '',
+                                },
+                            });
+
+                        if (!tenantCreateError && tenantCreate?.tenant_id) {
+                            tenantId = tenantCreate.tenant_id;
+                            role = 'owner';
+                        } else if (tenantCreateError) {
+                            console.warn('create-tenant failed', tenantCreateError);
+                        }
+                    } catch (e) {
+                        console.warn('create-tenant invocation error', e);
+                    }
                 }
             }
 
@@ -936,6 +1019,15 @@ class PharmaStore {
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await this.handleLogin();
+            });
+        }
+
+        // Store owner signup form
+        const ownerSignupForm = document.getElementById('ownerSignupForm');
+        if (ownerSignupForm) {
+            ownerSignupForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.handleOwnerSignup();
             });
         }
 
