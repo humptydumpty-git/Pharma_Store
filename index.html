@@ -54,7 +54,12 @@
                         </div>
                     </div>
 
-                    <form id="loginForm" class="login-form" autocomplete="on" novalidate>
+                    <div class="auth-tabs">
+                        <button type="button" class="auth-tab auth-tab-active" data-auth-tab="login">Login</button>
+                        <button type="button" class="auth-tab" data-auth-tab="signup">Store Owner Sign Up</button>
+                    </div>
+
+                    <form id="loginForm" class="login-form auth-panel auth-panel-active" autocomplete="on" novalidate>
                         <label for="username">Email</label>
                         <input id="username" name="username" type="email" required placeholder="Enter email" autocomplete="email" />
 
@@ -75,6 +80,34 @@
                             </button>
                         </div>
                         <div id="loginMessage" class="message info" aria-live="polite" style="display:none;"></div>
+                    </form>
+
+                    <form id="ownerSignupForm" class="login-form auth-panel" autocomplete="on" novalidate>
+                        <label for="signupStoreName">Store Name</label>
+                        <input id="signupStoreName" type="text" required placeholder="e.g. Grace Pharmacy, Adenta" />
+
+                        <label for="signupOwnerName">Owner Name</label>
+                        <input id="signupOwnerName" type="text" required placeholder="Your full name" />
+
+                        <label for="signupEmail">Email</label>
+                        <input id="signupEmail" type="email" required placeholder="Owner email" autocomplete="email" />
+
+                        <label for="signupPhone">Telephone</label>
+                        <input id="signupPhone" type="tel" required placeholder="e.g. 0240..." />
+
+                        <label for="signupPassword">Password</label>
+                        <input id="signupPassword" type="password" required placeholder="Create password" autocomplete="new-password" />
+
+                        <label for="signupPassword2">Confirm Password</label>
+                        <input id="signupPassword2" type="password" required placeholder="Confirm password" autocomplete="new-password" />
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-store"></i>
+                                <span>Create Store Account</span>
+                            </button>
+                        </div>
+                        <div id="signupMessage" class="message info" aria-live="polite" style="display:none;"></div>
                     </form>
                 </div>
             </div>
@@ -183,6 +216,10 @@
                             <button type="button" class="action-btn" onclick="runEndOfDay()">
                                 <i class="fas fa-stopwatch"></i>
                                 <span>End of Day (EOD)</span>
+                            </button>
+                            <button type="button" class="action-btn admin-only" onclick="openAddUserModal()">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Create User</span>
                             </button>
                         </div>
                     </div>
@@ -1074,6 +1111,44 @@
                     </div>
                 </section>
 
+                <!-- Create User Modal -->
+                <div id="addUserModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="addUserTitle">
+                    <div class="modal-content">
+                        <h3 id="addUserTitle">Create User</h3>
+                        <form id="addUserForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUsername">Username</label>
+                                    <input id="newUsername" type="text" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="newPassword">Password</label>
+                                    <input id="newPassword" type="password" required />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUserType">Role</label>
+                                    <select id="newUserType" required>
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Create User</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="closeAddUserModal()">
+                                    <i class="fas fa-times"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Change Password Modal -->
                 <div id="changePasswordModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
                     <div class="modal-content">
@@ -1154,10 +1229,37 @@
     <!-- app.js -->
     <script src="app.js" defer></script>
 
-    <!-- Vercel Speed Insights -->
+    <!-- Expose modal helpers and auth-tab behavior -->
     <script>
-        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+        function openAddUserModal() {
+            if (window.pharmaStore && typeof window.pharmaStore.openAddUserModal === 'function') {
+                window.pharmaStore.openAddUserModal();
+            }
+        }
+        function closeAddUserModal() {
+            if (window.pharmaStore && typeof window.pharmaStore.closeAddUserModal === 'function') {
+                window.pharmaStore.closeAddUserModal();
+            }
+        }
+
+        // Auth tab switching
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.auth-tab');
+            const panels = document.querySelectorAll('.auth-panel');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.getAttribute('data-auth-tab');
+                    tabs.forEach(t => t.classList.remove('auth-tab-active'));
+                    panels.forEach(p => p.classList.remove('auth-panel-active'));
+
+                    tab.classList.add('auth-tab-active');
+                    const panelId = target === 'login' ? 'loginForm' : 'ownerSignupForm';
+                    const activePanel = document.getElementById(panelId);
+                    if (activePanel) activePanel.classList.add('auth-panel-active');
+                });
+            });
+        });
     </script>
-    <script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
 </html>

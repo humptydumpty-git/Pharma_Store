@@ -75,8 +75,9 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(8px);
+    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.95)),
+                url('assets/drugs.webp') center/cover no-repeat;
+    backdrop-filter: blur(4px);
     animation: fadeIn 0.4s ease;
 }
 
@@ -225,6 +226,38 @@ body {
     margin: 1rem 0 0.5rem;
 }
 
+.auth-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: rgba(15, 23, 42, 0.04);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.auth-tab-active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
+.auth-panel {
+    display: none;
+}
+
+.auth-panel-active {
+    display: block;
+}
+
 .login-form input[type="text"],
 .login-form input[type="password"],
 .login-form select {
@@ -237,6 +270,27 @@ body {
     color: var(--text-primary);
     transition: all 0.3s ease;
     outline: none;
+}
+
+.login-form .form-actions {
+    margin-top: 1.5rem;
+}
+
+.login-form .btn-primary {
+    width: 100%;
+    min-height: auto;
+    padding: 0.875rem 1rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    background: var(--accent-primary);
+    box-shadow: 0 8px 18px rgba(102, 126, 234, 0.35);
+}
+
+.login-form .btn-primary i {
+    font-size: 0.95rem;
 }
 
 @media (max-width: 768px) {
