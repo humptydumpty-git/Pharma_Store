@@ -1508,15 +1508,19 @@ class PharmaStore {
         if (!form) return;
         
         const isEdit = form.dataset.editId;
-        const drugData = {
+        const nowIso = new Date().toISOString();
+        const baseDrugData = {
             name: document.getElementById('drugName')?.value || '',
             category: document.getElementById('drugCategory')?.value || '',
             quantity: parseInt(document.getElementById('drugQuantity')?.value || 0),
             price: parseFloat(document.getElementById('drugPrice')?.value || 0),
             expiry: document.getElementById('drugExpiry')?.value || '',
             supplier: document.getElementById('drugSupplier')?.value || 'N/A',
-            id: isEdit || Date.now().toString()
+            id: isEdit || Date.now().toString(),
+            updatedAt: nowIso,
+            _pendingSync: true
         };
+        const drugData = baseDrugData;
 
         if (!drugData.name || !drugData.category || !drugData.quantity || !drugData.price || !drugData.expiry) {
             this.showMessage('Please fill in all required fields', 'error');
@@ -1531,7 +1535,7 @@ class PharmaStore {
         if (isEdit) {
             const index = this.drugs.findIndex(d => d.id === isEdit);
             if (index !== -1) {
-                this.drugs[index] = drugData;
+                this.drugs[index] = { ...this.drugs[index], ...drugData };
                 this.showMessage('Drug updated successfully', 'success');
                 this.logAuditEvent('edit_drug', `Updated drug: ${drugData.name}`);
             }

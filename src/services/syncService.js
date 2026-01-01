@@ -50,6 +50,42 @@
         }
     }
 
+    async function pushDirtyDrugs(store, supabaseClient) {
+        const tenantId = store.currentTenantId || store.tenantId || null;
+        if (!tenantId) return;
+
+        const dirty = (store.drugs || []).filter(d => d && d._pendingSync);
+        if (!dirty.length) return;
+
+        const payload = dirty.map(d => {
+            const clone = { ...d };
+            // Ensure tenant_id is set for Supabase
+            clone.tenant_id = clone.tenant_id || tenantId;
+            // Strip local-only flags
+            delete clone._pendingSync;
+            return clone;
+        });
+
+        const { error } = await supabaseClient
+            .from('drugs')
+            .upsert(payload, { onConflict: 'id' });
+
+        if (error) {
+            console.warn('PharmaSync: failed to push dirty drugs', error);
+            return;
+        }
+
+        // Clear _pendingSync flag locally
+        store.drugs = (store.drugs || []).map(d =>
+            d && d._pendingSync ? { ...d, _pendingSync: false } : d
+        );
+        if (typeof store.saveData === 'function') {
+            store.saveData('drugs', store.drugs);
+        }
+
+        console.log(`PharmaSync: pushed ${dirty.length} dirty drug(s) to Supabase`);
+    }
+
     async function syncAll(store) {
         if (!store || typeof store !== 'object') return;
 
@@ -68,7 +104,8 @@
         }
 
         try {
-            // One-way pull for each major dataset
+            // Two-way sync for drugs: push local dirty rows, then pull fresh state
+            await pushDirtyDrugs(store, supabaseClient);
             await syncTable(store, supabaseClient, 'drugs', 'drugs');
             await syncTable(store, supabaseClient, 'sales', 'sales');
             await syncTable(store, supabaseClient, 'stockAdjustments', 'stock_adjustments');
