@@ -633,8 +633,10 @@ class PharmaStore {
             return fail('No internet connection. Please check your network and try again.');
         }
 
+        // Try Supabase signup with timeout
         try {
-            const { data, error } = await supabaseClient.auth.signUp({
+            console.log('Attempting Supabase signup...');
+            const signupPromise = supabaseClient.auth.signUp({
                 email,
                 password,
                 options: {
@@ -646,12 +648,20 @@ class PharmaStore {
                 },
             });
 
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timeout')), 30000)
+            );
+
+            const { data, error } = await Promise.race([signupPromise, timeoutPromise]);
+
             if (error) {
                 console.error('Owner signup error', error);
 
                 // Handle specific error types
-                if (error.name === 'AuthRetryableFetchError') {
-                    return fail('Network error. Please check your internet connection and try again.');
+                if (error.name === 'AuthRetryableFetchError' || error.message?.includes('fetch')) {
+                    console.warn('Supabase network error, falling back to local signup');
+                    return this.createLocalOwnerAccount(email, password, ownerName, storeName, phone);
                 }
 
                 // Handle other common errors
@@ -667,9 +677,12 @@ class PharmaStore {
                     return fail('Password must be at least 6 characters long.');
                 }
 
-                return fail(error.message || 'Unable to create account. Please try again.');
+                // For other errors, fall back to local account
+                console.warn('Supabase signup failed, falling back to local account:', error.message);
+                return this.createLocalOwnerAccount(email, password, ownerName, storeName, phone);
             }
 
+            console.log('Supabase signup successful');
             signupMessage.textContent =
                 'Account created. Please check your email (' +
                 email +
@@ -679,17 +692,19 @@ class PharmaStore {
         } catch (e) {
             console.error('Owner signup exception', e);
 
-            // Handle network-related errors
-            if (e.name === 'AuthRetryableFetchError' || e.message?.includes('fetch')) {
-                return fail('Network error. Please check your internet connection and try again.');
+            // Handle network-related errors by falling back to local account
+            if (e.name === 'AuthRetryableFetchError' ||
+                e.message?.includes('fetch') ||
+                e.message?.includes('timeout') ||
+                e.message?.includes('network') ||
+                !navigator.onLine) {
+                console.warn('Network error detected, falling back to local signup');
+                return this.createLocalOwnerAccount(email, password, ownerName, storeName, phone);
             }
 
-            // Handle timeout errors
-            if (e.message?.includes('timeout') || e.message?.includes('TimeoutError')) {
-                return fail('Request timed out. Please check your internet connection and try again.');
-            }
-
-            return fail('Unexpected error during sign up. Please try again.');
+            // For unexpected errors, still try local fallback
+            console.warn('Unexpected error during Supabase signup, falling back to local account:', e.message);
+            return this.createLocalOwnerAccount(email, password, ownerName, storeName, phone);
         }
     }
 
@@ -3401,6 +3416,48 @@ class PharmaStore {
             form.style.display = 'none';
             form.reset();
         }
+    }
+
+    // Fallback method to create local owner account when Supabase signup fails
+    async createLocalOwnerAccount(email, password, ownerName, storeName, phone) {
+        console.log('Creating local owner account as fallback');
+
+        // Check if email is already used as username
+        if (this.users.find(u => u.username === email)) {
+            return this.fail('This email is already registered locally. Please use a different email or try logging in.');
+        }
+
+        // Hash the password
+        const passwordHash = await this.hashString(password);
+
+        // Create the owner user
+        const ownerUser = {
+            username: email,
+            passwordHash: passwordHash,
+            type: 'admin',
+            createdAt: new Date().toISOString(),
+            photo: '',
+            isLocalOwner: true,
+            ownerName: ownerName,
+            storeName: storeName,
+            phone: phone
+        };
+
+        this.users.push(ownerUser);
+        this.saveData('users', this.users);
+
+        // Log the creation
+        this.logAuditEvent('owner_signup_local', `Local owner account created for ${email} (${storeName})`);
+
+        // Show success message
+        const signupMessage = document.getElementById('signupMessage');
+        if (signupMessage) {
+            signupMessage.textContent = 'Account created successfully! You can now log in using your email and password.';
+            signupMessage.style.color = 'green';
+            signupMessage.style.display = 'block';
+        }
+
+        console.log('Local owner account created successfully');
     }
 }
 
