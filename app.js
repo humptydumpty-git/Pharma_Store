@@ -628,6 +628,11 @@ class PharmaStore {
             return fail('Online sign up is not available. Please check your internet or contact support.');
         }
 
+        // Check network connectivity before attempting signup
+        if (!navigator.onLine) {
+            return fail('No internet connection. Please check your network and try again.');
+        }
+
         try {
             const { data, error } = await supabaseClient.auth.signUp({
                 email,
@@ -643,6 +648,25 @@ class PharmaStore {
 
             if (error) {
                 console.error('Owner signup error', error);
+
+                // Handle specific error types
+                if (error.name === 'AuthRetryableFetchError') {
+                    return fail('Network error. Please check your internet connection and try again.');
+                }
+
+                // Handle other common errors
+                if (error.message?.includes('already registered')) {
+                    return fail('This email is already registered. Please use a different email or try logging in.');
+                }
+
+                if (error.message?.includes('Invalid email')) {
+                    return fail('Please enter a valid email address.');
+                }
+
+                if (error.message?.includes('Password')) {
+                    return fail('Password must be at least 6 characters long.');
+                }
+
                 return fail(error.message || 'Unable to create account. Please try again.');
             }
 
@@ -654,6 +678,17 @@ class PharmaStore {
             signupMessage.style.display = 'block';
         } catch (e) {
             console.error('Owner signup exception', e);
+
+            // Handle network-related errors
+            if (e.name === 'AuthRetryableFetchError' || e.message?.includes('fetch')) {
+                return fail('Network error. Please check your internet connection and try again.');
+            }
+
+            // Handle timeout errors
+            if (e.message?.includes('timeout') || e.message?.includes('TimeoutError')) {
+                return fail('Request timed out. Please check your internet connection and try again.');
+            }
+
             return fail('Unexpected error during sign up. Please try again.');
         }
     }
