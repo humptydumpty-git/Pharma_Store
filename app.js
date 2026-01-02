@@ -1545,6 +1545,16 @@ class PharmaStore {
             this.logAuditEvent('add_drug', `Added drug: ${drugData.name}`);
         }
 
+        // Mark for sync if cloud sync is enabled
+        if (this.cloudSyncEnabled && this.isOnline) {
+            if (isEdit) {
+                const index = this.drugs.findIndex(d => d.id === isEdit);
+                if (index !== -1) this.drugs[index]._pendingSync = true;
+            } else {
+                drugData._pendingSync = true;
+            }
+        }
+
         this.saveData('drugs', this.drugs);
         this.renderDrugs();
         this.populateSalesDrugs();
@@ -1848,6 +1858,11 @@ class PharmaStore {
             this.sales.push(sale);
             createdSales.push(sale);
 
+            // Mark for sync if cloud sync is enabled
+            if (this.cloudSyncEnabled && this.isOnline) {
+                sale._pendingSync = true;
+            }
+
             this.logAuditEvent('sale', `Sold ${sale.quantity} of ${sale.drugName} for ₵${sale.total.toFixed(2)}`);
         }
 
@@ -1992,6 +2007,11 @@ class PharmaStore {
         this.stockAdjustments = this.stockAdjustments || [];
         this.stockAdjustments.push(adjustment);
         this.saveData('stockAdjustments', this.stockAdjustments);
+
+        // Mark for sync if cloud sync is enabled
+        if (this.cloudSyncEnabled && this.isOnline) {
+            adjustment._pendingSync = true;
+        }
 
         this.logAuditEvent('stock_adjustment', `Adjusted ${drug.name}: ${adjustment.adjustment} (Reason: ${reason})`);
         this.showMessage('Stock adjustment applied successfully', 'success');
@@ -2917,6 +2937,11 @@ class PharmaStore {
         this.saveData('pettyCash', this.pettyCash);
         this.saveData('pettyCashBalance', this.pettyCashBalance);
 
+        // Mark for sync if cloud sync is enabled
+        if (this.cloudSyncEnabled && this.isOnline) {
+            entry._pendingSync = true;
+        }
+
         this.showMessage('Expense recorded successfully', 'success');
         this.logAuditEvent('petty_cash_entry', `Recorded expense: ${description} - ₵${amount.toFixed(2)}`);
         this.renderPettyCash();
@@ -3091,6 +3116,11 @@ class PharmaStore {
         this.employees.push(employee);
         this.saveData('employees', this.employees);
 
+        // Mark for sync if cloud sync is enabled
+        if (this.cloudSyncEnabled && this.isOnline) {
+            employee._pendingSync = true;
+        }
+
         this.showMessage('Employee added successfully', 'success');
         this.logAuditEvent('add_employee', `Added employee: ${name}`);
         this.renderEmployees();
@@ -3206,6 +3236,11 @@ class PharmaStore {
         this.salaryPayments = this.salaryPayments || [];
         this.salaryPayments.push(payment);
         this.saveData('salaryPayments', this.salaryPayments);
+
+        // Mark for sync if cloud sync is enabled
+        if (this.cloudSyncEnabled && this.isOnline) {
+            payment._pendingSync = true;
+        }
 
         this.showMessage('Salary payment processed successfully', 'success');
         this.logAuditEvent('salary_payment', `Processed salary for ${employee.name}: ₵${amount.toFixed(2)}`);

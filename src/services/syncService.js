@@ -50,11 +50,12 @@
         }
     }
 
-    async function pushDirtyDrugs(store, supabaseClient) {
+    async function pushDirtyData(store, supabaseClient, localKey, tableName, idField = 'id') {
         const tenantId = store.currentTenantId || store.tenantId || null;
         if (!tenantId) return;
 
-        const dirty = (store.drugs || []).filter(d => d && d._pendingSync);
+        const data = store[localKey] || [];
+        const dirty = data.filter(d => d && d._pendingSync);
         if (!dirty.length) return;
 
         const payload = dirty.map(d => {
@@ -67,23 +68,23 @@
         });
 
         const { error } = await supabaseClient
-            .from('drugs')
-            .upsert(payload, { onConflict: 'id' });
+            .from(tableName)
+            .upsert(payload, { onConflict: idField });
 
         if (error) {
-            console.warn('PharmaSync: failed to push dirty drugs', error);
+            console.warn(`PharmaSync: failed to push dirty ${tableName}`, error);
             return;
         }
 
         // Clear _pendingSync flag locally
-        store.drugs = (store.drugs || []).map(d =>
+        store[localKey] = data.map(d =>
             d && d._pendingSync ? { ...d, _pendingSync: false } : d
         );
         if (typeof store.saveData === 'function') {
-            store.saveData('drugs', store.drugs);
+            store.saveData(localKey, store[localKey]);
         }
 
-        console.log(`PharmaSync: pushed ${dirty.length} dirty drug(s) to Supabase`);
+        console.log(`PharmaSync: pushed ${dirty.length} dirty ${tableName} to Supabase`);
     }
 
     async function syncAll(store) {
@@ -104,8 +105,14 @@
         }
 
         try {
-            // Two-way sync for drugs: push local dirty rows, then pull fresh state
-            await pushDirtyDrugs(store, supabaseClient);
+            // Two-way sync: push local dirty rows, then pull fresh state
+            await pushDirtyData(store, supabaseClient, 'drugs', 'drugs');
+            await pushDirtyData(store, supabaseClient, 'sales', 'sales');
+            await pushDirtyData(store, supabaseClient, 'stockAdjustments', 'stock_adjustments');
+            await pushDirtyData(store, supabaseClient, 'pettyCash', 'petty_cash');
+            await pushDirtyData(store, supabaseClient, 'employees', 'employees');
+            await pushDirtyData(store, supabaseClient, 'salaryPayments', 'salary_payments');
+
             await syncTable(store, supabaseClient, 'drugs', 'drugs');
             await syncTable(store, supabaseClient, 'sales', 'sales');
             await syncTable(store, supabaseClient, 'stockAdjustments', 'stock_adjustments');
@@ -113,7 +120,7 @@
             await syncTable(store, supabaseClient, 'employees', 'employees');
             await syncTable(store, supabaseClient, 'salaryPayments', 'salary_payments');
 
-            console.log('PharmaSync: syncAll completed (Supabase → local pull).');
+            console.log('PharmaSync: syncAll completed (two-way sync).');
         } catch (e) {
             console.error('PharmaSync: syncAll failed', e);
         }
@@ -123,5 +130,3 @@
         syncAll
     };
 }));
-
-

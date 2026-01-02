@@ -55,8 +55,8 @@
                     </div>
 
                     <div class="auth-tabs">
-                        <button type="button" class="auth-tab auth-tab-active" data-auth-tab="login">Login</button>
-                        <button type="button" class="auth-tab" data-auth-tab="signup">Store Owner Sign Up</button>
+                        <button type="button" class="btn btn-primary auth-tab auth-tab-active" data-auth-tab="login">Login</button>
+                        <button type="button" class="btn btn-primary auth-tab" data-auth-tab="signup">Store Owner Sign Up</button>
                     </div>
 
                     <form id="loginForm" class="login-form auth-panel auth-panel-active" autocomplete="on" novalidate>
@@ -199,6 +199,10 @@
                     <button class="nav-btn" data-section="help" type="button">
                         <i class="fas fa-question-circle"></i>
                         <span>Help</span>
+                    </button>
+                    <button class="nav-btn admin-only" data-section="admin" type="button">
+                        <i class="fas fa-user-cog"></i>
+                        <span>Admin</span>
                     </button>
                 </nav>
             </aside>
@@ -1107,6 +1111,38 @@
                                 </tr>
                             </thead>
                             <tbody id="errorLogTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Admin Section -->
+                <section id="admin" class="content-section admin-only" aria-label="Admin Dashboard">
+                    <div class="section-header">
+                        <div>
+                            <h2>Admin Dashboard</h2>
+                            <p class="section-description">Manage users and system settings.</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <button type="button" class="action-btn" onclick="openAddUserModal()">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Add User</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Users</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Created</th>
+                                    <th>Photo</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
                         </table>
                     </div>
                 </section>
