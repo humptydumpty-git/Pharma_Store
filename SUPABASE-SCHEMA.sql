@@ -202,17 +202,17 @@ for all using (
   exists (select 1 from public.system_admins where user_id = auth.uid())
 );
 
--- Helper: ensure every authenticated user can only see tenants they belong to
-create policy "tenant_members_select_own" on public.tenant_members
-for select using (
-  auth.uid() = user_id
-);
-
--- Tenants: a user can see tenants where he is a member
-create policy "tenants_select_own" on public.tenants
-for select using (
-  id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
+-- Drop existing policies if they exist (to allow recreation)
+drop policy if exists "tenant_members_select_own" on public.tenant_members;
+drop policy if exists "tenants_select_own" on public.tenants;
+drop policy if exists "system_admins_select_own" on public.system_admins;
+drop policy if exists "system_admins_all_tenants" on public.tenants;
+drop policy if exists "system_admins_all_members" on public.tenant_members;
+drop policy if exists "system_admins_all_drugs" on public.drugs;
+drop policy if exists "system_admins_all_sales" on public.sales;
+drop policy if exists "system_admins_all_adjustments" on public.stock_adjustments;
+drop policy if exists "system_admins_all_petty_cash" on public.petty_cash;
+drop policy if exists "system_admins_all_employees" on public.employees;
 
 -- Data tables: match tenant_id of member
 create policy "drugs_tenant_isolation" on public.drugs
