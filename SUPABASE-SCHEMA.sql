@@ -12,6 +12,14 @@ create table if not exists public.tenants (
   created_at timestamptz not null default now()
 );
 
+-- 2) System administrators (optional: for managing all tenants)
+create table if not exists public.system_admins (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique,      -- references auth.users.id
+  email text not null unique,
+  created_at timestamptz not null default now()
+);
+
 -- 2) Tenant members (users within a store)
 create table if not exists public.tenant_members (
   id uuid primary key default gen_random_uuid(),
@@ -135,6 +143,7 @@ create table if not exists public.audit_log (
 
 -- Enable RLS
 alter table public.tenants enable row level security;
+alter table public.system_admins enable row level security;
 alter table public.tenant_members enable row level security;
 alter table public.drugs enable row level security;
 alter table public.sales enable row level security;
@@ -143,6 +152,55 @@ alter table public.petty_cash enable row level security;
 alter table public.employees enable row level security;
 alter table public.salary_payments enable row level security;
 alter table public.audit_log enable row level security;
+
+-- System admin policies: allow system admins to see everything
+create policy "system_admins_select_own" on public.system_admins
+for select using (auth.uid() = user_id);
+
+create policy "system_admins_all_tenants" on public.tenants
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_members" on public.tenant_members
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_drugs" on public.drugs
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_sales" on public.sales
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_adjustments" on public.stock_adjustments
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_petty_cash" on public.petty_cash
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_employees" on public.employees
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_payments" on public.salary_payments
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
+
+create policy "system_admins_all_audit" on public.audit_log
+for all using (
+  exists (select 1 from public.system_admins where user_id = auth.uid())
+);
 
 -- Helper: ensure every authenticated user can only see tenants they belong to
 create policy "tenant_members_select_own" on public.tenant_members
@@ -215,5 +273,3 @@ with check (
 
 -- Note: you should also configure Supabase Auth email confirmation
 -- and redirect URLs in the Supabase dashboard.
-
-

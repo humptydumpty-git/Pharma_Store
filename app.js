@@ -910,7 +910,45 @@ class PharmaStore {
 
     async bootstrapSupabaseContext(supabaseClient, user, presetTenantId) {
         try {
-            // Determine tenant membership
+            // First check if user is a system administrator
+            const { data: systemAdmin, error: adminError } = await supabaseClient
+                .from('system_admins')
+                .select('id')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            const isSystemAdmin = !adminError && systemAdmin !== null;
+            console.log('User is system admin:', isSystemAdmin);
+
+            if (isSystemAdmin) {
+                // System admin: can see all tenants
+                this.currentTenantId = null; // No specific tenant
+                this.currentTenantName = 'System Administration';
+                this.isSystemAdmin = true;
+
+                // Map Supabase user to currentUser model
+                this.currentUser = {
+                    id: user.id,
+                    username: user.email || user.id,
+                    type: 'admin',
+                    isSupabase: true,
+                    supabaseRole: 'system_admin',
+                    isSystemAdmin: true
+                };
+                this.isAdmin = true;
+
+                // Show app
+                this.showMainApp();
+                if (this.updateDashboard) this.updateDashboard();
+                if (this.populateSalesDrugs) this.populateSalesDrugs();
+                if (this.renderDrugs) this.renderDrugs();
+                if (this.renderSales) this.renderSales();
+
+                this.logAuditEvent('login', 'System admin ' + (user.email || user.id) + ' logged in');
+                return;
+            }
+
+            // Regular user: determine tenant membership
             let tenantId = presetTenantId || null;
             let role = 'user';
 
@@ -967,6 +1005,7 @@ class PharmaStore {
 
             this.currentTenantId = tenantId || null;
             this.currentTenantName = tenantName || null;
+            this.isSystemAdmin = false;
 
             // Map Supabase user to currentUser model
             this.currentUser = {
