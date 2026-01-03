@@ -475,12 +475,25 @@ class PharmaStore {
 
     // Authentication - primary entry point
     async handleLogin() {
+        const email = document.getElementById('username')?.value.trim();
+        const password = document.getElementById('password')?.value;
+
+        // First check if this is a locally created account
+        const localUser = this.users.find(u => u.username === email);
+        const isLocalOnly = localUser && localUser.isLocalOwner;
+
+        // If it's a local-only account, skip Supabase and go straight to local login
+        if (isLocalOnly) {
+            console.log('Detected local-only account, using local login');
+            return await this.handleLocalLogin();
+        }
+
         // Prefer Supabase Auth when available; fall back to local users when offline
         const supabaseClient = window.PharmaSupabase?.getSupabaseClient
             ? window.PharmaSupabase.getSupabaseClient()
             : null;
 
-        if (supabaseClient && this.isOnline) {
+        if (supabaseClient && this.isOnline && !isLocalOnly) {
             const ok = await this.handleSupabaseLogin(supabaseClient);
             // Hybrid mode: if Supabase login fails (e.g., legacy/local account),
             // automatically fall back to the local login mechanism.
