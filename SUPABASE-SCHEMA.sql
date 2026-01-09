@@ -153,6 +153,27 @@ alter table public.employees enable row level security;
 alter table public.salary_payments enable row level security;
 alter table public.audit_log enable row level security;
 
+-- Drop existing policies if they exist (to allow re-running the script)
+drop policy if exists "system_admins_select_own" on public.system_admins;
+drop policy if exists "system_admins_all_tenants" on public.tenants;
+drop policy if exists "system_admins_all_members" on public.tenant_members;
+drop policy if exists "system_admins_all_drugs" on public.drugs;
+drop policy if exists "system_admins_all_sales" on public.sales;
+drop policy if exists "system_admins_all_adjustments" on public.stock_adjustments;
+drop policy if exists "system_admins_all_petty_cash" on public.petty_cash;
+drop policy if exists "system_admins_all_employees" on public.employees;
+drop policy if exists "system_admins_all_payments" on public.salary_payments;
+drop policy if exists "system_admins_all_audit" on public.audit_log;
+drop policy if exists "tenant_members_select_own" on public.tenant_members;
+drop policy if exists "tenants_select_own" on public.tenants;
+drop policy if exists "drugs_tenant_isolation" on public.drugs;
+drop policy if exists "sales_tenant_isolation" on public.sales;
+drop policy if exists "stock_adjustments_tenant_isolation" on public.stock_adjustments;
+drop policy if exists "petty_cash_tenant_isolation" on public.petty_cash;
+drop policy if exists "employees_tenant_isolation" on public.employees;
+drop policy if exists "salary_payments_tenant_isolation" on public.salary_payments;
+drop policy if exists "audit_log_tenant_isolation" on public.audit_log;
+
 -- System admin policies: allow system admins to see everything
 create policy "system_admins_select_own" on public.system_admins
 for select using (auth.uid() = user_id);
@@ -202,17 +223,17 @@ for all using (
   exists (select 1 from public.system_admins where user_id = auth.uid())
 );
 
--- Drop existing policies if they exist (to allow recreation)
-drop policy if exists "tenant_members_select_own" on public.tenant_members;
-drop policy if exists "tenants_select_own" on public.tenants;
-drop policy if exists "system_admins_select_own" on public.system_admins;
-drop policy if exists "system_admins_all_tenants" on public.tenants;
-drop policy if exists "system_admins_all_members" on public.tenant_members;
-drop policy if exists "system_admins_all_drugs" on public.drugs;
-drop policy if exists "system_admins_all_sales" on public.sales;
-drop policy if exists "system_admins_all_adjustments" on public.stock_adjustments;
-drop policy if exists "system_admins_all_petty_cash" on public.petty_cash;
-drop policy if exists "system_admins_all_employees" on public.employees;
+-- Helper: ensure every authenticated user can only see tenants they belong to
+create policy "tenant_members_select_own" on public.tenant_members
+for select using (
+  auth.uid() = user_id
+);
+
+-- Tenants: a user can see tenants where he is a member
+create policy "tenants_select_own" on public.tenants
+for select using (
+  id in (select tenant_id from public.tenant_members where user_id = auth.uid())
+);
 
 -- Data tables: match tenant_id of member
 create policy "drugs_tenant_isolation" on public.drugs
