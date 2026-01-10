@@ -39,35 +39,38 @@ serve(async (req: Request) => {
       });
     }
 
-    const { data: tenant, error: tenantError } = await serviceClient
-      .from("tenants")
-      .insert({
-        name: storeName,
-        owner_user_id: user.id,
-        owner_name: ownerName,
-        email: user.email,
-        phone,
-      })
-      .select("id, name")
-      .single();
+    // create a slug for the tenant
+    const slug = storeName
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 50);
 
-    if (tenantError || !tenant) {
-      console.error("create-tenant tenantError", tenantError);
-      return new Response(JSON.stringify({ error: "Failed to create tenant" }), {
+    // Use DB function to create tenant and map the owner. Requires service role.
+    const { data: rpcData, error: rpcError } = await serviceClient.rpc("create_tenant", {
+      p_name: storeName,
+      p_slug: slug,
+      p_owner: user.id,
+    });
+
+    if (rpcError) {
+      console.error("create-tenant rpcError", rpcError);
+      return new Response(JSON.stringify({ error: "Failed to create tenant (rpc)" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const { error: memberError } = await serviceClient.from("tenant_members").insert({
-      tenant_id: tenant.id,
-      user_id: user.id,
-      role: "owner",
-    });
+    // rpc may return the tenant id depending on function; fetch tenant by slug to be safe
+    const { data: tenant, error: tenantError } = await serviceClient
+      .from("tenants")
+      .select("id, name")
+      .eq("slug", slug)
+      .maybeSingle();
 
-    if (memberError) {
-      console.error("create-tenant memberError", memberError);
-      return new Response(JSON.stringify({ error: "Failed to link owner to tenant" }), {
+    if (tenantError || !tenant) {
+      console.error("create-tenant fetch tenant error", tenantError);
+      return new Response(JSON.stringify({ error: "Failed to retrieve tenant" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
@@ -85,5 +88,3 @@ serve(async (req: Request) => {
     });
   }
 });
-
-

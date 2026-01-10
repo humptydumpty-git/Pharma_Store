@@ -27,7 +27,7 @@ serve(async (req: Request) => {
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: member, error: memberError } = await serviceClient
-      .from("tenant_members")
+      .from("tenant_users")
       .select("tenant_id, role")
       .eq("user_id", caller.id)
       .maybeSingle();
@@ -80,7 +80,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const { error: linkError } = await serviceClient.from("tenant_members").insert({
+    const { error: linkError } = await serviceClient.from("tenant_users").insert({
       tenant_id: member.tenant_id,
       user_id: newUser.user.id,
       role,
@@ -106,5 +106,3 @@ serve(async (req: Request) => {
     });
   }
 });
-
-

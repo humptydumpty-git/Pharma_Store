@@ -1,296 +1,148 @@
--- PharmaStore Supabase schema (multi-tenant, row-based tenancy)
--- Run this in the Supabase SQL editor after creating your project.
+-- SUPABASE multi-tenant schema (shared-schema approach)
+-- Purpose: Add tenant mapping, user preferences, tenant-scoped example tables, RLS and admin helper functions.
+-- Apply via Supabase SQL editor or as part of DB migrations.
+-- NOTE: Do NOT expose service_role key to clients. Use server-side functions / Edge Functions for tenant creation.
 
--- 1) Tenants (stores)
-create table if not exists public.tenants (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,                 -- Store name
-  owner_user_id uuid not null,        -- references auth.users.id
-  owner_name text not null,
-  email text not null,
-  phone text,
-  created_at timestamptz not null default now()
+-- Enable required extension for UUID generation
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- tenants: maps stores/owners
+CREATE TABLE IF NOT EXISTS public.tenants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  slug text UNIQUE NOT NULL,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz DEFAULT now()
 );
 
--- 2) System administrators (optional: for managing all tenants)
-create table if not exists public.system_admins (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null unique,      -- references auth.users.id
-  email text not null unique,
-  created_at timestamptz not null default now()
+-- tenant_users: map auth.users.id to tenants with roles (owner, admin, user)
+CREATE TABLE IF NOT EXISTS public.tenant_users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL, -- should match auth.users.id
+  role text NOT NULL CHECK (role IN ('owner','admin','user')),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (tenant_id, user_id)
 );
 
--- 2) Tenant members (users within a store)
-create table if not exists public.tenant_members (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  user_id uuid not null,             -- references auth.users.id
-  role text not null check (role in ('owner', 'admin', 'user')),
-  created_at timestamptz not null default now(),
-  unique (tenant_id, user_id)
+-- user_preferences: per-user, per-tenant last device/view state to restore UI across devices
+CREATE TABLE IF NOT EXISTS public.user_preferences (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL, -- auth.users.id
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  last_device text,
+  last_route text,
+  last_view_state jsonb DEFAULT '{}'::jsonb,
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE (user_id, tenant_id)
 );
 
--- 3) Drugs
-create table if not exists public.drugs (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  name text not null,
-  category text,
-  quantity numeric not null default 0,
-  price numeric(12,2) not null default 0,
-  expiry date,
-  supplier text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+-- Example tenant-scoped application table
+CREATE TABLE IF NOT EXISTS public.products (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  sku text,
+  name text NOT NULL,
+  price numeric,
+  meta jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz DEFAULT now()
 );
 
--- 4) Sales
-create table if not exists public.sales (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  drug_id uuid references public.drugs(id),
-  drug_name text,
-  quantity numeric not null,
-  price numeric(12,2) not null,
-  total numeric(12,2) not null,
-  customer_name text,
-  payment_method text,
-  date date not null,
-  time time not null,
-  sold_by text,
-  created_at timestamptz not null default now()
-);
+-- Enable Row Level Security on tenant-scoped tables
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 
--- 5) Stock adjustments
-create table if not exists public.stock_adjustments (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  drug_id uuid references public.drugs(id),
-  drug_name text,
-  old_quantity numeric not null,
-  adjustment text not null,
-  new_quantity numeric not null,
-  reason text,
-  notes text,
-  adjusted_by text,
-  timestamp timestamptz not null default now()
-);
+-- RLS policy: allow SELECT on products only for users who belong to the tenant
+CREATE POLICY IF NOT EXISTS products_select_for_tenant
+  ON public.products
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.tenant_users tu
+      WHERE tu.tenant_id = public.products.tenant_id
+        AND tu.user_id = auth.uid()
+    )
+  );
 
--- 6) Petty cash
-create table if not exists public.petty_cash (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  date date not null,
-  category text not null,
-  description text not null,
-  amount numeric(12,2) not null,
-  type text not null check (type in ('income', 'expense')),
-  payment_method text,
-  notes text,
-  recorded_by text,
-  timestamp timestamptz not null default now()
-);
+-- RLS policies: allow INSERT/UPDATE/DELETE for owner or admin in the tenant
+CREATE POLICY IF NOT EXISTS products_modify_for_admins
+  ON public.products
+  FOR INSERT, UPDATE, DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.tenant_users tu
+      WHERE tu.tenant_id = public.products.tenant_id
+        AND tu.user_id = auth.uid()
+        AND tu.role IN ('owner','admin')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.tenant_users tu
+      WHERE tu.tenant_id = public.products.tenant_id
+        AND tu.user_id = auth.uid()
+        AND tu.role IN ('owner','admin')
+    )
+  );
 
--- 7) Employees
-create table if not exists public.employees (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  name text not null,
-  position text,
-  gross_pay numeric(12,2) not null default 0,
-  allowances numeric(12,2) not null default 0,
-  tax numeric(12,2) not null default 0,
-  ssnit numeric(12,2) not null default 0,
-  insurance numeric(12,2) not null default 0,
-  net_salary numeric(12,2) not null default 0,
-  phone text,
-  email text,
-  start_date date,
-  created_at timestamptz not null default now()
-);
+-- RLS policies for user_preferences: users can only read/write their own preferences
+CREATE POLICY IF NOT EXISTS user_prefs_select
+  ON public.user_preferences
+  FOR SELECT
+  USING (user_id = auth.uid());
 
--- 8) Salary payments
-create table if not exists public.salary_payments (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  employee_id uuid references public.employees(id),
-  employee_name text,
-  position text,
-  month text not null,
-  amount numeric(12,2) not null,
-  payment_method text,
-  notes text,
-  processed_by text,
-  timestamp timestamptz not null default now()
-);
+CREATE POLICY IF NOT EXISTS user_prefs_modify
+  ON public.user_preferences
+  FOR INSERT, UPDATE, DELETE
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
 
--- 9) Audit log (optional on Supabase if you want central logging)
-create table if not exists public.audit_log (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
-  action text not null,
-  details text,
-  category text,
-  user_name text,
-  ip text,
-  device text,
-  created_at timestamptz not null default now()
-);
+-- Helper function: create tenant and assign owner (requires service role / server-side call)
+CREATE OR REPLACE FUNCTION public.create_tenant(
+  p_name text,
+  p_slug text,
+  p_owner uuid
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_tenant uuid;
+BEGIN
+  -- create tenant record
+  INSERT INTO public.tenants (name, slug) VALUES (p_name, p_slug)
+    RETURNING id INTO v_tenant;
 
--- ========================
--- Row Level Security (RLS)
--- ========================
+  -- map owner to tenant with owner role
+  INSERT INTO public.tenant_users (tenant_id, user_id, role)
+    VALUES (v_tenant, p_owner, 'owner');
 
--- Enable RLS
-alter table public.tenants enable row level security;
-alter table public.system_admins enable row level security;
-alter table public.tenant_members enable row level security;
-alter table public.drugs enable row level security;
-alter table public.sales enable row level security;
-alter table public.stock_adjustments enable row level security;
-alter table public.petty_cash enable row level security;
-alter table public.employees enable row level security;
-alter table public.salary_payments enable row level security;
-alter table public.audit_log enable row level security;
+  RETURN v_tenant;
+END;
+$$;
 
--- Drop existing policies if they exist (to allow re-running the script)
-drop policy if exists "system_admins_select_own" on public.system_admins;
-drop policy if exists "system_admins_all_tenants" on public.tenants;
-drop policy if exists "system_admins_all_members" on public.tenant_members;
-drop policy if exists "system_admins_all_drugs" on public.drugs;
-drop policy if exists "system_admins_all_sales" on public.sales;
-drop policy if exists "system_admins_all_adjustments" on public.stock_adjustments;
-drop policy if exists "system_admins_all_petty_cash" on public.petty_cash;
-drop policy if exists "system_admins_all_employees" on public.employees;
-drop policy if exists "system_admins_all_payments" on public.salary_payments;
-drop policy if exists "system_admins_all_audit" on public.audit_log;
-drop policy if exists "tenant_members_select_own" on public.tenant_members;
-drop policy if exists "tenants_select_own" on public.tenants;
-drop policy if exists "drugs_tenant_isolation" on public.drugs;
-drop policy if exists "sales_tenant_isolation" on public.sales;
-drop policy if exists "stock_adjustments_tenant_isolation" on public.stock_adjustments;
-drop policy if exists "petty_cash_tenant_isolation" on public.petty_cash;
-drop policy if exists "employees_tenant_isolation" on public.employees;
-drop policy if exists "salary_payments_tenant_isolation" on public.salary_payments;
-drop policy if exists "audit_log_tenant_isolation" on public.audit_log;
+-- IMPORTANT: mark this function's owner appropriately and restrict who can call it.
+-- Only call create_tenant from server-side code or Supabase Edge Functions that run with the service_role key.
 
--- System admin policies: allow system admins to see everything
-create policy "system_admins_select_own" on public.system_admins
-for select using (auth.uid() = user_id);
+-- Optional advanced: create schema-per-tenant (commented, advanced operational overhead)
+-- Example skeleton: create schema and example table inside it. Use with caution.
+-- CREATE OR REPLACE FUNCTION public.create_tenant_schema(p_slug text)
+-- RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+-- BEGIN
+--   EXECUTE format('CREATE SCHEMA IF NOT EXISTS tenant_%I', p_slug);
+--   EXECUTE format($$CREATE TABLE IF NOT EXISTS tenant_%I.products (
+--       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--       name text NOT NULL,
+--       price numeric,
+--       created_at timestamptz DEFAULT now()
+--     );$$, p_slug);
+-- END;
+-- $$;
 
-create policy "system_admins_all_tenants" on public.tenants
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
+-- Note: schema-per-tenant implies migrations per schema and search_path handling. Prefer shared-schema with RLS unless strict isolation required.
 
-create policy "system_admins_all_members" on public.tenant_members
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
+-- Optional: convenience view to get current user's tenants
+CREATE OR REPLACE VIEW public.current_user_tenants AS
+SELECT t.id AS tenant_id, t.name, t.slug, tu.role
+FROM public.tenants t
+JOIN public.tenant_users tu ON tu.tenant_id = t.id
+WHERE tu.user_id = auth.uid();
 
-create policy "system_admins_all_drugs" on public.drugs
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
-
-create policy "system_admins_all_sales" on public.sales
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
-
-create policy "system_admins_all_adjustments" on public.stock_adjustments
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
-
-create policy "system_admins_all_petty_cash" on public.petty_cash
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
-
-create policy "system_admins_all_employees" on public.employees
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
-
-create policy "system_admins_all_payments" on public.salary_payments
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
-
-create policy "system_admins_all_audit" on public.audit_log
-for all using (
-  exists (select 1 from public.system_admins where user_id = auth.uid())
-);
-
--- Helper: ensure every authenticated user can only see tenants they belong to
-create policy "tenant_members_select_own" on public.tenant_members
-for select using (
-  auth.uid() = user_id
-);
-
--- Tenants: a user can see tenants where he is a member
-create policy "tenants_select_own" on public.tenants
-for select using (
-  id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
--- Data tables: match tenant_id of member
-create policy "drugs_tenant_isolation" on public.drugs
-for all using (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-)
-with check (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
-create policy "sales_tenant_isolation" on public.sales
-for all using (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-)
-with check (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
-create policy "stock_adjustments_tenant_isolation" on public.stock_adjustments
-for all using (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-)
-with check (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
-create policy "petty_cash_tenant_isolation" on public.petty_cash
-for all using (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-)
-with check (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
-create policy "employees_tenant_isolation" on public.employees
-for all using (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-)
-with check (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
-create policy "salary_payments_tenant_isolation" on public.salary_payments
-for all using (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-)
-with check (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
-create policy "audit_log_tenant_isolation" on public.audit_log
-for all using (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-)
-with check (
-  tenant_id in (select tenant_id from public.tenant_members where user_id = auth.uid())
-);
-
--- Note: you should also configure Supabase Auth email confirmation
--- and redirect URLs in the Supabase dashboard.
+-- End of SUPABASE-SCHEMA.sql
