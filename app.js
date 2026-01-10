@@ -889,6 +889,15 @@ class PharmaStore {
 
             await this.bootstrapSupabaseContext(supabaseClient, data.user);
 
+            // Apply per-user last-seen preferences to restore tenant/view across devices
+            if (window.PharmaSupabase && typeof window.PharmaSupabase.applyLastSeenForUser === 'function') {
+                try {
+                    await window.PharmaSupabase.applyLastSeenForUser(this);
+                } catch (e) {
+                    console.warn('applyLastSeenForUser failed', e);
+                }
+            }
+
             // Persist Supabase session reference for refresh
             this.saveUserSession({
                 mode: 'supabase',
@@ -1062,6 +1071,15 @@ class PharmaStore {
                         return;
                     }
                     await this.bootstrapSupabaseContext(supabaseClient, data.session.user, session.tenantId);
+
+                    // Restore per-user tenant/view preferences after bootstrapping context
+                    if (window.PharmaSupabase && typeof window.PharmaSupabase.applyLastSeenForUser === 'function') {
+                        try {
+                            await window.PharmaSupabase.applyLastSeenForUser(this);
+                        } catch (e) {
+                            console.warn('applyLastSeenForUser failed during restoreUserSession', e);
+                        }
+                    }
                 }).catch(() => {
                     this.clearUserSession();
                 });
